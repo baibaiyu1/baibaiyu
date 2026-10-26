@@ -1,0 +1,316 @@
+package com.gmd.faq.server.main.workflowbiz.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.gmd.faq.server.main.common.UserDetail;
+import com.gmd.faq.server.main.common.entity.Workflow;
+import com.gmd.faq.server.main.common.entity.WorkflowNodeExecution;
+import com.gmd.faq.server.main.common.entity.WorkflowRun;
+import com.gmd.faq.server.main.common.entity.WorkflowVersion;
+import com.gmd.faq.server.main.common.enums.NodeRunStatus;
+import com.gmd.faq.server.main.common.enums.NodeType;
+import com.gmd.faq.server.main.common.enums.WorkflowRunStatus;
+import com.gmd.faq.server.main.common.util.UserUtils;
+import com.gmd.faq.server.main.node.base.Node;
+import com.gmd.faq.server.main.node.base.NodeOutput;
+import com.gmd.faq.server.main.node.base.context.NodeContext;
+import com.gmd.faq.server.main.node.base.request.ParamItem;
+import com.gmd.faq.server.main.node.base.request.RequestParams;
+import com.gmd.faq.server.main.workflow.run.RunWorkflow;
+import com.gmd.faq.server.main.workflow.run.cache.RunWorkflowCache;
+import com.gmd.faq.server.main.workflowbiz.core.WorkflowDefinitionCompiler;
+import com.gmd.faq.server.main.workflowbiz.dto.WorkflowNodeRunRequest;
+import com.gmd.faq.server.main.workflowbiz.dto.WorkflowRunRequest;
+import com.gmd.faq.server.main.workflowbiz.mapper.WorkflowMapper;
+import com.gmd.faq.server.main.workflowbiz.mapper.WorkflowNodeExecutionMapper;
+import com.gmd.faq.server.main.workflowbiz.mapper.WorkflowRunMapper;
+import com.gmd.faq.server.main.workflowbiz.mapper.WorkflowVersionMapper;
+import com.gmd.faq.server.main.workflowbiz.service.WorkflowRunService;
+import com.gmd.faq.server.main.workflowbiz.vo.WorkflowNodeRunResult;
+import com.gmd.faq.server.main.workflowbiz.vo.WorkflowRunResult;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class WorkflowRunServiceImpl extends ServiceImpl<WorkflowRunMapper, WorkflowRun> implements WorkflowRunService {
+    private final WorkflowMapper workflowMapper;
+    private final WorkflowNodeExecutionMapper nodeExecutionMapper;
+    private final WorkflowVersionMapper workflowVersionMapper;
+    private final WorkflowDefinitionCompiler compiler;
+    private final ObjectMapper objectMapper;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WorkflowRunResult debugRun(Long workflowId, WorkflowRunRequest request) {
+        Workflow workflow = workflowMapper.selectById(workflowId);
+        if (workflow == null) {
+            throw new RuntimeException("workflow not found");
+        }
+        return doRun(workflow, request,  UserUtils.getUserDetail(), false);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WorkflowRunResult run(Long workflowId, WorkflowRunRequest request, UserDetail userDetail) {
+        Workflow workflow = workflowMapper.selectById(workflowId);
+        if (workflow == null) {
+            throw new RuntimeException("workflow not found");
+        }
+        return doRun(workflow, request, userDetail, true);
+    }
+
+    @Override
+    public List<WorkflowNodeExecution> nodeExecutions(Long runId) {
+        return nodeExecutionMapper.selectList(new LambdaQueryWrapper<WorkflowNodeExecution>()
+                .eq(WorkflowNodeExecution::getWorkflowRunId, String.valueOf(runId))
+                .orderByAsc(WorkflowNodeExecution::getStartTime));
+    }
+
+    @Override
+    public WorkflowNodeRunResult debugNodeRun(WorkflowNodeRunRequest request, UserDetail userDetail) {
+        if (request == null || request.getNode() == null) {
+            throw new RuntimeException("节点定义不能为空");
+        }
+
+        // 将「节点输出」类输入改写为「固定值」测试值，仅作用于本次独立运行，不影响原始配置
+        JsonNode preparedNode = prepareNodeForDebug(request.getNode(), request.getInputs(), request.getInputTypes());
+
+        Node node = compiler.compileSubNode(preparedNode);
+
+        NodeContext context = new NodeContext("node-debug-" + System.currentTimeMillis());
+        context.setSkipVerify(true);
+        if (request.getVariables() != null) {
+            request.getVariables().forEach(context.getVariables()::storeVariable);
+        }
+        if (userDetail != null) {
+            context.getVariables().storeVariable("tenantId", userDetail.getTenantId());
+            context.getVariables().storeVariable("tenantCode", userDetail.getTenantCode());
+            context.getVariables().storeVariable("userId", userDetail.getId());
+            context.getVariables().storeVariable("userName", userDetail.getUsername());
+        }
+
+        NodeOutput output = node.execute(context);
+        return toNodeRunResult(output);
+    }
+
+    /**
+     * 准备单节点运行的节点定义：将 NODE_OUTPUT 输入改写为 CONSTANT 并注入测试值/类型。
+     */
+    private JsonNode prepareNodeForDebug(JsonNode nodeJson, Map<String, Object> inputs, Map<String, String> inputTypes) {
+        ObjectNode copy = nodeJson.deepCopy();
+        JsonNode inputConfigs = copy.get("inputConfigs");
+        if (inputConfigs == null || !inputConfigs.isArray()) {
+            return copy;
+        }
+        for (JsonNode item : inputConfigs) {
+            if (!item.isObject()) {
+                continue;
+            }
+            ObjectNode cfg = (ObjectNode) item;
+            String classify = text(cfg, "classify", text(cfg, "sourceType", null));
+            if (!"NODE_OUTPUT".equals(classify)) {
+                continue;
+            }
+            String name = text(cfg, "name", "input");
+
+            cfg.put("classify", "CONSTANT");
+            cfg.remove("sourceType");
+            cfg.remove("sourceNodeId");
+            cfg.remove("nodeId");
+            cfg.remove("sourceOutputName");
+            cfg.remove("outputName");
+
+            if (inputTypes != null && inputTypes.get(name) != null && !inputTypes.get(name).isBlank()) {
+                cfg.put("type", inputTypes.get(name));
+            }
+
+            Object value = inputs == null ? null : inputs.get(name);
+            if (value == null) {
+                cfg.putNull("value");
+            } else {
+                cfg.set("value", objectMapper.valueToTree(value));
+            }
+        }
+        return copy;
+    }
+
+    private String text(JsonNode node, String field, String defaultValue) {
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() ? defaultValue : value.asText();
+    }
+
+    private WorkflowNodeRunResult toNodeRunResult(NodeOutput output) {
+        WorkflowNodeRunResult result = new WorkflowNodeRunResult();
+        if (output == null) {
+            return result;
+        }
+        result.setNodeId(output.getNodeId());
+        result.setNodeTitle(output.getNodeName());
+        result.setNodeType(output.getNodeType() == null ? null : output.getNodeType().name());
+        result.setStatus(toNodeStatus(output.getStatus()));
+        result.setOutput(output.getDefaultOutput());
+        result.setOutputs(output.getAllOutput());
+        result.setInputs(toMap(output.getExecutionContext().get("inputs")));
+        result.setExecutionContext(output.getExecutionContext());
+        result.setVerifyErrors(output.getVerifyErrors());
+        result.setError(output.getErrorMessage());
+        result.setStartTime(toMillis(output.getStartTime()));
+        result.setEndTime(toMillis(output.getEndTime()));
+        result.setDuration(output.getExecutionDuration());
+        return result;
+    }
+
+    private String toNodeStatus(NodeOutput.ExecutionStatus status) {
+        if (status == NodeOutput.ExecutionStatus.SUCCESS) {
+            return "SUCCESS";
+        }
+        if (status == NodeOutput.ExecutionStatus.RUNNING) {
+            return "RUNNING";
+        }
+        return "FAIL";
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> toMap(Object value) {
+        if (value instanceof Map) {
+            return (Map<String, Object>) value;
+        }
+        return null;
+    }
+
+    private WorkflowRunResult doRun(Workflow workflow, WorkflowRunRequest request, UserDetail userDetail, boolean publishedOnly) {
+        WorkflowVersion publishedVersion = publishedOnly ? latestPublishedVersion(workflow.getId()) : null;
+        Object config = publishedVersion == null ? workflow.getConfig() : publishedVersion.getConfig();
+        if (config == null) {
+            throw new RuntimeException("workflow config is empty");
+        }
+        RunWorkflow runWorkflow = publishedOnly ? RunWorkflowCache.get(String.valueOf(workflow.getId())) : null;
+        if (runWorkflow == null) {
+            runWorkflow = compiler.compile(String.valueOf(workflow.getId()), config);
+            if (publishedOnly) {
+                RunWorkflowCache.set(runWorkflow);
+            }
+        }
+
+        WorkflowRun run = new WorkflowRun();
+        run.setRouteId(workflow.getRouteId());
+        run.setWorkflowId(String.valueOf(workflow.getId()));
+        run.setVersion(publishedVersion == null ? workflow.getVersion() : publishedVersion.getVersion());
+        run.setConfig(config);
+        run.setInputs(request);
+        run.setStatus(WorkflowRunStatus.RUNNING);
+        run.setStartTime(System.currentTimeMillis());
+        save(run);
+
+        NodeContext context = new NodeContext(String.valueOf(run.getId()));
+        context.setRequestParams(toRequestParams(request));
+        if (request != null && request.getVariables() != null) {
+            request.getVariables().forEach(context.getVariables()::storeVariable);
+        }
+
+        if (userDetail != null) {
+            context.getVariables().storeVariable("tenantId", userDetail.getTenantId());
+            context.getVariables().storeVariable("tenantCode", userDetail.getTenantCode());
+            context.getVariables().storeVariable("userId", userDetail.getId());
+            context.getVariables().storeVariable("userName", userDetail.getUsername());
+        } else {
+            throw new RuntimeException("user detail is empty");
+        }
+
+        Object output = null;
+        String error = null;
+        try {
+            output = runWorkflow.execute(context);
+        } catch (Exception e) {
+            error = e.getMessage();
+        }
+
+        List<WorkflowNodeExecution> executions = persistNodeExecutions(workflow, run, context);
+        boolean nodeFailed = executions.stream().anyMatch(x -> x.getStatus() == NodeRunStatus.FAIL);
+        run.setOutputs(output);
+        run.setError(error);
+        run.setEndTime(System.currentTimeMillis());
+        run.setStatus(error == null && !nodeFailed ? WorkflowRunStatus.SUCCESS : WorkflowRunStatus.FAIL);
+        updateById(run);
+
+        WorkflowRunResult result = new WorkflowRunResult();
+        result.setRun(run);
+        result.setOutput(output);
+        result.setNodeExecutions(executions);
+        return result;
+    }
+
+    private WorkflowVersion latestPublishedVersion(Long workflowId) {
+        WorkflowVersion version = workflowVersionMapper.selectOne(new LambdaQueryWrapper<WorkflowVersion>()
+                .eq(WorkflowVersion::getWorkflowId, String.valueOf(workflowId))
+                .orderByDesc(WorkflowVersion::getId)
+                .last("limit 1"));
+        if (version == null) {
+            throw new RuntimeException("workflow has no published version");
+        }
+        return version;
+    }
+
+    private RequestParams toRequestParams(WorkflowRunRequest request) {
+        List<ParamItem> params = request == null || request.getParams() == null ? List.of() : request.getParams();
+        return RequestParams.builder().params(params).build();
+    }
+
+    private List<WorkflowNodeExecution> persistNodeExecutions(Workflow workflow, WorkflowRun run, NodeContext context) {
+        List<WorkflowNodeExecution> executions = new ArrayList<>();
+        for (NodeOutput output : context.getExecutionTrace()) {
+            WorkflowNodeExecution execution = new WorkflowNodeExecution();
+            execution.setRouteId(workflow.getRouteId());
+            execution.setWorkflowId(String.valueOf(workflow.getId()));
+            execution.setWorkflowRunId(String.valueOf(run.getId()));
+            execution.setNodeId(output.getNodeId());
+            execution.setNodeTitle(output.getNodeName());
+            execution.setNodeType(NodeType.valueOf(output.getNodeType().name()));
+            execution.setInputs(toJson(output.getExecutionContext().get("inputs")));
+            execution.setProcessData(toJson(output.getExecutionContext()));
+            execution.setOutputs(toJson(output.getAllOutput()));
+            execution.setStatus(toStatus(output.getStatus()));
+            execution.setError(output.getErrorMessage() == null ? toJson(output.getVerifyErrors()) : output.getErrorMessage());
+            execution.setStartTime(toMillis(output.getStartTime()));
+            execution.setEndTime(toMillis(output.getEndTime()));
+            nodeExecutionMapper.insert(execution);
+            executions.add(execution);
+        }
+        return executions;
+    }
+
+    private NodeRunStatus toStatus(NodeOutput.ExecutionStatus status) {
+        if (status == NodeOutput.ExecutionStatus.SUCCESS) {
+            return NodeRunStatus.SUCCESS;
+        }
+        if (status == NodeOutput.ExecutionStatus.RUNNING) {
+            return NodeRunStatus.RUNNING;
+        }
+        return NodeRunStatus.FAIL;
+    }
+
+    private Long toMillis(Instant instant) {
+        return instant == null ? null : instant.toEpochMilli();
+    }
+
+    private String toJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            return String.valueOf(value);
+        }
+    }
+}

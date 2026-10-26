@@ -1,0 +1,31 @@
+server:
+  port: 3064
+
+spring:
+  profiles:
+    active: dev
+  application:
+    name: gmd-faq-websocket
+  main:
+    banner-mode: off
+  task:
+    execution:
+      pool:
+        core-size: 8
+        max-size: 50
+        queue-capacity: 200
+      thread-name-prefix: ws-async-
+  mvc:
+    async:
+      request-timeout: 30s
+
+logging:
+  level:
+    root: WARN
+    com.gmd.faq.server.main.websocket: INFO
+
+# WebSocket 心跳上报配置
+heartbeat:
+  enabled: true
+  console-url: http://localhost:3060
+  interval-seconds: 30

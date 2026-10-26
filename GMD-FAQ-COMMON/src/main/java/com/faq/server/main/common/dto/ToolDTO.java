@@ -1,0 +1,41 @@
+package com.gmd.faq.server.main.common.dto;
+
+import com.gmd.faq.server.main.common.enums.ToolType;
+import com.gmd.faq.server.main.common.mp.annotation.QueryDefine;
+import com.gmd.faq.server.main.common.mp.support.PageParams;
+import com.gmd.faq.server.main.common.mp.support.QueryCondition;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+/**
+ * 工具查询DTO
+ *
+ */
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class ToolDTO extends PageParams {
+
+    @QueryDefine(value = "工具名称", condition = QueryCondition.LIKE)
+    private String name;
+
+    @QueryDefine(value = "工具编号", condition = QueryCondition.EQ)
+    private String toolId;
+
+    @QueryDefine(value = "工具类型", condition = QueryCondition.EQ)
+    private ToolType toolType;
+
+    @QueryDefine(value = "工具分类", condition = QueryCondition.EQ)
+    private String category;
+
+    @QueryDefine(value = "是否可用", condition = QueryCondition.EQ)
+    private Boolean enabled;
+
+    /**
+     * 可见性范围（不参与 SQL 自动拼接，由 Controller 手动追加过滤条件）
+     * personal=我创建的，public=本组织公开，favorite=我收藏的，all/空=我可见的全部
+     */
+    private String scope;
+
+    /** 当前资源空间，只收窄列表，不改变权限。 */
+    private String space;
+}

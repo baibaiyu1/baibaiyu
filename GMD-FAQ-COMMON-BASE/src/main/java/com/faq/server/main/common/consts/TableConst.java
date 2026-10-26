@@ -1,0 +1,98 @@
+package com.gmd.faq.server.main.common.consts;
+
+/**
+ * 描述：表名
+ *
+ **/
+public class TableConst {
+    public static final String TOOL = "gmd_faq_tool_config";
+    public static final String PROMPT = "gmd_faq_system_prompt_template";
+    public static final String STORAGE = "gmd_faq_storage_protocol";
+    public static final String SKILL = "gmd_faq_skill_package";
+    public static final String SKILL_FILE = "gmd_faq_skill_file";
+    public static final String SENSITIVE_WORD = "gmd_faq_sensitive_word_config";
+    public static final String JOB_LOG = "gmd_faq_quartz_job_log";
+    public static final String JOB_INFO = "gmd_faq_quartz_job_info";
+    public static final String JOB_RECORD = "gmd_faq_quartz_job_records";
+    public static final String PARAMS = "gmd_faq_params";
+    public static final String PROVIDER = "gmd_faq_model_provider";
+    public static final String MODEL = "gmd_faq_model_config";
+    public static final String MCP = "gmd_faq_mcp_server";
+    public static final String MCP_TOOL = "gmd_faq_mcp_tool";
+    public static final String KNOWLEDGE = "gmd_faq_knowledge_base_config";
+    public static final String HOOK = "gmd_faq_hook_config";
+    public static final String CHAT_SESSION = "gmd_faq_chat_session";
+    public static final String CHAT_MESSAGE = "gmd_faq_chat_message";
+    public static final String CHAT_ARTIFACT = "gmd_faq_chat_artifact";
+    public static final String CHAT_SUBAGENT_EVENT = "gmd_faq_chat_subagent_event";
+    public static final String CHAT_SUBAGENT_RUN = "gmd_faq_chat_subagent_run";
+    public static final String ATTACH_LOG = "gmd_faq_attach_log";
+    public static final String ATTACH_CHUNK = "gmd_faq_attach_chunk";
+    public static final String ATTACH = "gmd_faq_attach";
+    public static final String AGENT_SCOPE_SESSIONS = "gmd_faq_agentscope_sessions";
+    public static final String AGENT_INSTRUCTION_RUN = "gmd_faq_agent_instruction_run";
+    public static final String AGENT_INSTRUCTION = "gmd_faq_agent_instruction";
+    public static final String AGENT_TELEMETRY = "gmd_faq_agent_telemetry";
+    public static final String AGENT_RUN_LANE = "gmd_faq_agent_run_lane";
+    public static final String AGENT_QUEUED_MESSAGE = "gmd_faq_agent_queued_message";
+    public static final String AGENT_TOOL = "gmd_faq_agent_tools";
+    public static final String AGENT_WORKFLOW = "gmd_faq_agent_workflows";
+    public static final String AGENT_CHAT_KEY = "gmd_faq_agent_chat_key";
+    public static final String SKILL_TOOL = "gmd_faq_skill_tools";
+    public static final String AGENT_AGENT = "gmd_faq_agent_sub_agents";
+    public static final String AGENT_SKILL = "gmd_faq_agent_skill_packages";
+    public static final String AGENT_MCP = "gmd_faq_agent_mcp_servers";
+    public static final String AGENT_MCP_TOOL = "gmd_faq_agent_mcp_tool";
+    public static final String AGENT_KNOWLEDGE = "gmd_faq_agent_knowledge_bases";
+    public static final String AGENT_HOOKS = "gmd_faq_agent_hooks";
+    public static final String AGENT_STUDIO = "gmd_faq_agent_studio";
+    public static final String STUDIO_CONFIG = "gmd_faq_studio_config";
+    public static final String AGENT = "gmd_faq_agent_definition";
+    public static final String AGENT_TAG = "gmd_faq_agent_tag";
+    public static final String AGENT_A2A = "gmd_faq_agent_a2a";
+    public static final String ACCOUNT = "gmd_faq_account";
+    public static final String SECRET_KEY = "gmd_faq_secret_key";
+    public static final String CODE_EXECUTION_CONFIG  = "gmd_faq_code_execution_config";
+    public static final String AGENT_CODE_EXECUTION  = "gmd_faq_agent_code_execution";
+    public static final String RAG_DOCUMENT = "gmd_faq_rag_document";
+    public static final String RAG_DOCUMENT_CHUNK = "gmd_faq_rag_document_chunk";
+    public static final String TENANT = "gmd_faq_tenant";
+    public static final String ACCOUNT_TENANT = "gmd_faq_account_tenant";
+    public static final String DEPARTMENT = "gmd_faq_department";
+    /** 部门（组织）负责人关联表（多选，见 V18 迁移） */
+    public static final String DEPARTMENT_LEADER = "gmd_faq_department_leader";
+    public static final String ROLE = "gmd_faq_role";
+    public static final String ROLE_MENU = "gmd_faq_role_menu";
+    public static final String ROLE_ACCOUNT = "gmd_faq_role_account";
+    public static final String MENU = "gmd_faq_menu";
+    public static final String LONG_TERM_MEMORY_CONFIG = "gmd_faq_long_term_memory_config";
+    public static final String AGENT_LONG_TERM_MEMORY = "gmd_faq_agent_long_term_memory";
+    public static final String SKILL_TOKEN = "gmd_faq_skill_token";
+    public static final String CACHE = "gmd_faq_cache";
+    public static final String DATASOURCE = "gmd_faq_datasource";
+    public static final String MQ = "gmd_faq_mq";
+    public static final String CHANNEL = "gmd_faq_channel";
+    public static final String PLUGIN = "gmd_faq_plugin";
+    public static final String WORKFLOW = "gmd_faq_workflow";
+    public static final String WORKFLOW_CACHE = "gmd_faq_workflow_cache";
+    public static final String WORKFLOW_DATASOURCE = "gmd_faq_workflow_datasource";
+    public static final String WORKFLOW_MQ = "gmd_faq_workflow_mq";
+    public static final String WORKFLOW_CHANNEL = "gmd_faq_workflow_channel";
+    public static final String WORKFLOW_NODE_EXECUTION = "gmd_faq_workflow_node_execution";
+    public static final String WORKFLOW_PLUGIN = "gmd_faq_workflow_plugin";
+    public static final String WORKFLOW_RUN = "gmd_faq_workflow_run";
+    public static final String WORKFLOW_VERSION = "gmd_faq_workflow_version";
+    public static final String GATEWAY_APP = "gmd_faq_gateway_app";
+    public static final String GATEWAY_API = "gmd_faq_gateway_api";
+    public static final String GATEWAY_API_WORKFLOW = "gmd_faq_gateway_api_workflow";
+    public static final String APPROVAL_FLOW = "gmd_faq_approval_flow";
+    public static final String APPROVAL_REQUEST = "gmd_faq_approval_request";
+    public static final String RESOURCE_FAVORITE = "gmd_faq_resource_favorite";
+    public static final String RESOURCE_ACCESS_GRANT = "gmd_faq_resource_access_grant";
+    public static final String RESOURCE_DEPARTMENT_GRANT = "gmd_faq_resource_department_grant";
+    public static final String GATEWAY_ACCESS_LOG = "gmd_faq_gateway_access_log";
+    public static final String DASHBOARD = "gmd_faq_dashboard";
+    public static final String DASHBOARD_USER = "gmd_faq_dashboard_user";
+    public static final String DASHBOARD_DATASET = "gmd_faq_dashboard_dataset";
+    public static final String DASHBOARD_HISTORY = "gmd_faq_dashboard_history";
+}

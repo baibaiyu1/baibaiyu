@@ -1,0 +1,33 @@
+.card-heading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.card-footer {
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  margin-top: auto;
+
+  .card-tags {
+    min-width: 0;
+    flex: 1 1 100%;
+    gap: 5px;
+    row-gap: 5px;
+  }
+
+  .card-time {
+    flex-shrink: 0;
+    margin-left: auto;
+    font-size: 11px;
+    line-height: 21px;
+    color: #a0a6af;
+  }
+
+  .card-footer-right {
+    margin-left: auto;
+  }
+}

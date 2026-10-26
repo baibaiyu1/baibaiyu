@@ -1,0 +1,39 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.gmd.faq.server.main</groupId>
+        <artifactId>GMD-FAQ-SERVER-MAIN</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>GMD-FAQ-BIZ</artifactId>
+    <packaging>pom</packaging>
+    <name>GMD-FAQ-BIZ</name>
+
+    <modules>
+        <module>GMD-FAQ-BIZ-A2A</module>
+        <module>GMD-FAQ-BIZ-ACCOUNT</module>
+        <module>GMD-FAQ-BIZ-AGENT</module>
+        <module>GMD-FAQ-BIZ-HOOK</module>
+        <module>GMD-FAQ-BIZ-KNOWLEDGE</module>
+        <module>GMD-FAQ-BIZ-LONGTERM</module>
+        <module>GMD-FAQ-BIZ-MCP</module>
+        <module>GMD-FAQ-BIZ-MODEL</module>
+        <module>GMD-FAQ-BIZ-PARAMS</module>
+        <module>GMD-FAQ-BIZ-PROMPT</module>
+        <module>GMD-FAQ-BIZ-RESOURCE</module>
+        <module>GMD-FAQ-BIZ-SENSITIVE</module>
+        <module>GMD-FAQ-BIZ-SK</module>
+        <module>GMD-FAQ-BIZ-SKILL</module>
+        <module>GMD-FAQ-BIZ-STUDIO</module>
+        <module>GMD-FAQ-BIZ-TOOL</module>
+        <module>GMD-FAQ-BIZ-CACHE</module>
+        <module>GMD-FAQ-BIZ-MQ</module>
+        <module>GMD-FAQ-BIZ-DATASOURCE</module>
+        <module>GMD-FAQ-BIZ-DASHBOARD</module>
+        <module>GMD-FAQ-BIZ-CHANNEL</module>
+        <module>GMD-FAQ-BIZ-WORKFLOW</module>
+        <module>GMD-FAQ-BIZ-GATEWAY</module>
+    </modules>
+</project>

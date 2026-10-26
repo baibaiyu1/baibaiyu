@@ -1,0 +1,12 @@
+package com.gmd.faq.server.main.scheduler.consts;
+
+/**
+ * 描述：常量类
+ *
+ **/
+public class JobConst {
+    public static final String DATA_MAP_KEY = "DATA_MAP_KEY";
+    public static final String TENANT_ID_KEY = "TENANT_ID_KEY";
+    public static final String TENANT_CODE_KEY = "TENANT_CODE_KEY";
+    public static final String USER_INFO_KEY = "USER_INFO_KEY";
+}

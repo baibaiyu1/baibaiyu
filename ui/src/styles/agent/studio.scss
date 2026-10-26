@@ -1,0 +1,245 @@
+/**
+ * 智能体编排工作台样式（布局 + 顶部操作条 + 卡片锚点条）
+ *
+ * 布局参考「青云Agent平台」的智能体编辑页：左侧导航 + 顶部操作条 + 中间卡片式编排 + 右侧预览调试。
+ * 卡片内部的「资源分组」（空态 / 已选 pill / 选择弹窗）样式见 `studio-resource.scss`、`studio-picker.scss`。
+ *
+ */
+
+.agstudio {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  min-height: 620px;
+  overflow: hidden;
+  color: #263043;
+  background: #f5f8fe;
+}
+
+.agstudio-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+/* ===================== 顶部操作条 ===================== */
+.agstudio-topbar {
+  display: flex;
+  height: 64px;
+  flex: 0 0 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 22px;
+  border-bottom: 1px solid #e4eaf4;
+  background: #fff;
+}
+
+.agstudio-topbar__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.agstudio-topbar__icon {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  color: #1677ff;
+  border-radius: 9px;
+  background: #eef4ff;
+  font-size: 18px;
+}
+
+.agstudio-topbar__copy {
+  min-width: 0;
+}
+
+.agstudio-topbar__copy strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  color: #1f2737;
+  font-size: 17px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「模块化编辑」徽标（参照页顶栏） */
+.agstudio-topbar__badge-pill {
+  padding: 3px 10px;
+  color: #1677ff;
+  border-radius: 999px;
+  background: #eef4ff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.agstudio-topbar__copy small {
+  display: block;
+  margin-top: 3px;
+  color: #96a2b6;
+  font-size: 11px;
+}
+
+.agstudio-topbar__tag {
+  padding: 3px 8px;
+  color: #5467ed;
+  border-radius: 9px;
+  background: #eef0ff;
+  font-size: 10px;
+}
+
+.agstudio-topbar__stat {
+  padding: 3px 8px;
+  color: #1f9254;
+  border-radius: 9px;
+  background: #eaf7ef;
+  font-size: 10px;
+}
+
+.agstudio-topbar__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===================== 内容区 ===================== */
+.agstudio-content {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+
+.agstudio-center {
+  min-width: 0;
+  flex: 1;
+  padding: 0 18px 28px;
+  overflow-y: auto;
+}
+
+/* ===================== 卡片锚点条（sticky） ===================== */
+.agstudio-anchors {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 -18px 16px;
+  padding: 10px 18px;
+  border-bottom: 1px solid #edf1f8;
+  background: rgba(245, 248, 254, 0.94);
+  backdrop-filter: blur(6px);
+}
+
+.agstudio-anchors__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  color: #5a6b8c;
+  border: 1px solid #e4ebf7;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.agstudio-anchors__item:hover {
+  color: #1677ff;
+  border-color: #bcd6ff;
+  background: #f5f9ff;
+}
+
+.agstudio-anchors__item.is-active {
+  color: #fff;
+  border-color: #1677ff;
+  background: #1677ff;
+  box-shadow: 0 4px 10px rgba(22, 119, 255, 0.22);
+}
+
+.agstudio-anchors__item em {
+  min-width: 16px;
+  padding: 0 5px;
+  color: #1677ff;
+  border-radius: 999px;
+  background: #eef4ff;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 16px;
+  text-align: center;
+}
+
+.agstudio-anchors__item.is-active em {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.agstudio-cards {
+  display: flex;
+  max-width: 1180px;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ===================== 子页面（定时 / 架构 / API / 日志 / 统计）容器 ===================== */
+.agstudio-subpage {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ===================== 空态与加载 ===================== */
+.agstudio-state {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #98a4b8;
+  font-size: 13px;
+}
+
+.agstudio-state__icon {
+  font-size: 30px;
+  color: #b9c4d4;
+}
+
+/* ===================== 响应式 ===================== */
+@media (max-width: 1200px) {
+  .agstudio-center {
+    padding: 0 12px 20px;
+  }
+
+  .agstudio-anchors {
+    margin: 0 -12px 12px;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 900px) {
+  .agstudio-topbar {
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+
+  .agstudio-topbar__copy small,
+  .agstudio-topbar__tag,
+  .agstudio-topbar__stat {
+    display: none;
+  }
+}

@@ -1,0 +1,94 @@
+/**
+ * 智能体编排工作台 —— 「功能增强 · Web App 用户体验」弹窗样式
+ *
+ * 版式参考参照页 `ConversationSettingsModal`：说明文案 + 推荐问题列表（拖拽/序号/删除）+ 添加按钮。
+ *
+ */
+
+.agstudio-webapp__desc {
+  margin: 0 0 18px;
+  color: #7f8fa9;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.agstudio-webapp__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agstudio-webapp__field + .agstudio-webapp__field {
+  margin-top: 18px;
+}
+
+.agstudio-webapp__label {
+  color: #313a4c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agstudio-webapp__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agstudio-webapp__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e2e9f5;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.agstudio-webapp__drag {
+  display: inline-flex;
+  color: #9aa8be;
+  font-size: 15px;
+  cursor: grab;
+}
+
+.agstudio-webapp__drag:active {
+  cursor: grabbing;
+}
+
+.agstudio-webapp__index {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  color: #7f8fa9;
+  border-radius: 50%;
+  background: #eef2f9;
+  font-size: 11px;
+}
+
+.agstudio-webapp__item :deep(.ant-input) {
+  padding: 4px 8px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.agstudio-webapp__item :deep(.ant-input:focus) {
+  border-color: #1677ff;
+  background: #fff;
+}
+
+.agstudio-webapp__hint {
+  margin-top: 8px;
+  color: #9aa8be;
+  font-size: 12px;
+}
+
+.agstudio-webapp__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f4fa;
+}

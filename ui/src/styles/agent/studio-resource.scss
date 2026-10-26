@@ -1,0 +1,214 @@
+/**
+ * 智能体编排工作台 —— 卡片内的「资源分组」样式
+ *
+ * 版式参考「青云Agent平台」工作台：空态（插画 + 说明 + 添加按钮）与
+ * 已选 pill 列表（可单个移除 + 继续添加），细分参数收在折叠的「高级设置」里。
+ * 全局复用（`@use` 进各 AgentForm* 的 scoped 样式），类名统一 `agstudio-res-*`。
+ *
+ */
+
+/* ===================== 已选资源 pill ===================== */
+.agstudio-res-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #eef2f9;
+  border-radius: 10px;
+  background: #fcfdff;
+}
+
+.agstudio-res-pills__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.agstudio-res-pill {
+  display: inline-flex;
+  max-width: 260px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 10px;
+  color: #5268e9;
+  border-radius: 7px;
+  background: #eef1ff;
+  font-size: 12px;
+  transition: all 0.16s ease;
+}
+
+.agstudio-res-pill:hover {
+  background: #e4e9ff;
+}
+
+.agstudio-res-pill--drag {
+  cursor: default;
+}
+
+.agstudio-res-pill__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agstudio-res-pill em {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(82, 104, 233, 0.12);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.agstudio-res-pill button {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  place-items: center;
+  padding: 0;
+  color: #8593d8;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.agstudio-res-pill button:hover {
+  color: #f0526b;
+  background: #fff;
+}
+
+.agstudio-res-add-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  color: #1677ff;
+  border: 1px dashed #b9caff;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.agstudio-res-add-more:hover {
+  border-color: #1677ff;
+  background: #f5f9ff;
+}
+
+/* ===================== 空态 ===================== */
+.agstudio-res-empty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 96px;
+  padding: 16px;
+  border: 1px dashed #e2e9f5;
+  border-radius: 10px;
+  background: #fbfdff;
+}
+
+.agstudio-res-empty__icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  place-items: center;
+  color: #5268f5;
+  border-radius: 11px;
+  background: #eef2ff;
+  font-size: 20px;
+}
+
+.agstudio-res-empty__copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.agstudio-res-empty__copy strong {
+  display: block;
+  color: #354055;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agstudio-res-empty__copy p {
+  margin: 5px 0 0;
+  color: #9aa8be;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.agstudio-res-empty__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.agstudio-res-empty__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 13px;
+  color: #1677ff;
+  border: 0;
+  border-radius: 7px;
+  background: #eef4ff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.agstudio-res-empty__add:hover {
+  color: #fff;
+  background: #1677ff;
+}
+
+.agstudio-res-empty__link {
+  color: #8a97b0;
+  font-size: 11px;
+}
+
+.agstudio-res-empty__link:hover {
+  color: #1677ff;
+}
+
+/* ===================== 高级设置折叠区 ===================== */
+.agstudio-res-advanced {
+  margin-top: 4px;
+  border-radius: 10px;
+  background: #fbfdff;
+}
+
+.agstudio-res-advanced__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #313a4c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agstudio-res-advanced__title em {
+  color: #9aa8be;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  .agstudio-res-empty {
+    flex-wrap: wrap;
+  }
+
+  .agstudio-res-empty__actions {
+    width: 100%;
+  }
+}

@@ -1,0 +1,10 @@
+# 单包结构：仅根目录自身。pnpm 9（Docker 构建内 corepack 固定为 9.4.0）要求该字段，
+# 缺失会直接报 "packages field missing or empty" 导致前端镜像构建失败。
+packages:
+  - '.'
+
+allowBuilds:
+  '@parcel/watcher': false
+  core-js: false
+  esbuild: false
+  vue-demi: false

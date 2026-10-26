@@ -1,0 +1,54 @@
+# ============================================================
+# Docker 环境配置（spring.profiles.active=docker）
+# 所有值均从环境变量读取，由 docker-compose 注入
+# ============================================================
+
+server:
+  port: 3063
+
+# 关闭嵌入式 Web 服务器，runner-file 不对外暴露 HTTP 接口
+spring:
+  main:
+    web-application-type: none
+  data:
+    redis:
+      host: ${REDIS_HOST:gmd-faq-redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis}
+      database: ${REDIS_DATABASE:7}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:gmd-faq-mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:gmd_faq_server}?useSSL=false&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&serverTimezone=GMT%2B8&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root}
+    hikari:
+      minimum-idle: 2
+      maximum-pool-size: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+logging:
+  level:
+    root: WARN
+    com.gmd.faq.server.main.file: INFO
+
+# 技能文件同步服务配置
+skill-sync:
+  console-url: http://${CONSOLE_HOST:gmd-faq-console}:3060
+  download-timeout-seconds: 120
+  local-base-dir: .baibaiyu
+
+# 心跳上报配置
+heartbeat:
+  enabled: true
+  console-url: http://${CONSOLE_HOST:gmd-faq-console}:3060
+  service-type: FILE
+  port: ${server.port}

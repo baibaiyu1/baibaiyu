@@ -1,0 +1,14 @@
+server:
+  port: 3063
+
+# 关闭嵌入式 Web 服务器，runner-file 不对外暴露 HTTP 接口
+spring:
+  application:
+    name: gmd-faq-file
+  profiles:
+    active: dev
+
+logging:
+  level:
+    root: WARN
+    com.gmd.faq.server.main.file: INFO

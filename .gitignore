@@ -1,0 +1,61 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+ui/dist-zip/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### Other
+.agents
+.qoder
+.cursor
+.baibaiyu
+.claude
+.codex
+.trae
+.omc
+.omx
+.codex_tmp
+logs
+.m2
+
+### 本地开发配置（含本机连接信息与密码；模板见同目录 application-dev.sample.yml）
+**/src/main/resources/application-dev.yml
+.tmp-qy/
+
+# 本地分析与临时测试产物
+/dep-tree.txt
+/scratch/
+/ui/vite.harness.config.ts
+
+output/

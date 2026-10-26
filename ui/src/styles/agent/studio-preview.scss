@@ -1,0 +1,166 @@
+/**
+ * 智能体编排工作台 —— 右侧「预览与调试」面板样式
+ *
+ * 面板内部直接挂载原生对话界面（`ChatMain`），气泡/推理/工具卡片/输入区
+ * 全部复用 `styles/chat/index.scss`；这里只负责面板外壳（标题条、推荐问题、底部提示）。
+ *
+ */
+
+.agstudio-preview {
+  display: flex;
+  flex: 0 0 47%;
+  width: 47%;
+  min-width: 320px;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid #e9eef7;
+  background: #fff;
+}
+
+.agstudio-preview__header {
+  display: flex;
+  height: 48px;
+  flex: 0 0 48px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.agstudio-preview__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.agstudio-preview__header strong {
+  color: #273043;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agstudio-preview__model {
+  max-width: 190px;
+  padding: 2px 8px;
+  overflow: hidden;
+  color: #5467ed;
+  border-radius: 999px;
+  background: #eef0ff;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agstudio-preview__flag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+.agstudio-preview__flag.is-warn {
+  color: #ad6800;
+  background: #fff7e6;
+}
+
+.agstudio-preview__header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 原生对话界面：占满面板（其内部自带滚动与输入区） */
+.agstudio-preview__chat {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agstudio-preview__chat :deep(.chat-main) {
+  height: 100%;
+  min-height: 0;
+}
+
+/* 参考页里对话区没有独立标题栏，隐藏原生标题栏以免与面板标题重复 */
+.agstudio-preview__chat :deep(.chat-main-header) {
+  display: none;
+}
+
+/* ===================== 推荐问题（开场白配置） ===================== */
+.agstudio-preview__starters {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 10px;
+}
+
+.agstudio-preview__starter {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  overflow: hidden;
+  color: #5268e9;
+  border: 1px solid #e6ebff;
+  border-radius: 999px;
+  background: #f7f9ff;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.agstudio-preview__starter:hover {
+  border-color: #b9c6ff;
+  background: #eef1ff;
+}
+
+.agstudio-preview__starter span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===================== 底部「功能增强」入口（可点，打开 Web App 体验配置） ===================== */
+.agstudio-preview__banner {
+  display: flex;
+  height: 36px;
+  flex: 0 0 36px;
+  margin: 0 14px 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #536af5;
+  border-radius: 6px;
+  background: #eef1ff;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.agstudio-preview__banner:hover {
+  background: #e2e8ff;
+}
+
+@media (max-width: 1200px) {
+  .agstudio-preview {
+    flex-basis: 42%;
+    width: 42%;
+  }
+
+  .agstudio-preview__model {
+    display: none;
+  }
+}
+
+@media (max-width: 992px) {
+  .agstudio-preview {
+    display: none;
+  }
+}

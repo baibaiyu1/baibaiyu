@@ -1,0 +1,450 @@
+/**
+ * 智能体编排页 —— 定时任务（列表 + 新增/编辑弹窗）样式
+ *
+ * 版式参考「青云Agent平台」的定时任务页：白底面板 + 过滤条（搜索 / 状态 + 新增 / 刷新 / 列设置）
+ * + 表格 + 底部「共 N 条」分页；弹窗侧是「任务名称 / 输入内容 / 触发类型 / 执行策略（六段选择器 +
+ * Quartz Cron + 常用模板）/ 结果推送 / 状态」。
+ *
+ * 类名统一 `agsched*`，由 `AgentConfigSchedule.vue` 与 `AgentScheduleTaskModal.vue` 分别 `@use`。
+ *
+ */
+
+/* ===================== 列表面板 ===================== */
+.agsched {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  border: 1px solid #e9eef7;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.agsched__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 0;
+}
+
+.agsched__title {
+  margin: 0;
+  color: #1f2737;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.agsched__subtitle {
+  color: #96a2b6;
+  font-size: 12px;
+}
+
+.agsched__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px 14px;
+}
+
+.agsched__filters {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.agsched__search {
+  width: 220px;
+}
+
+.agsched__status {
+  width: 128px;
+}
+
+.agsched__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.agsched__table {
+  min-height: 0;
+  flex: 1;
+  padding: 0 18px;
+}
+
+.agsched__table :deep(.ant-table-thead > tr > th) {
+  color: #6b7a94;
+  border-bottom: 1px solid #eef2f9;
+  background: #fafbfe;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 表头不显示排序/筛选图标时，去掉多余的分隔线视觉 */
+.agsched__table :deep(.ant-table-thead > tr > th)::before {
+  display: none;
+}
+
+.agsched__table :deep(.ant-table-tbody > tr > td) {
+  color: #3d4a61;
+  border-bottom: 1px solid #f4f7fc;
+  font-size: 13px;
+}
+
+.agsched__table :deep(.ant-table-placeholder) {
+  border-bottom: 0;
+}
+
+.agsched__name {
+  display: block;
+  overflow: hidden;
+  color: #26314a;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agsched__text {
+  display: block;
+  overflow: hidden;
+  color: #5d6b83;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agsched__cron {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agsched__cron span {
+  overflow: hidden;
+  color: #3d4a61;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agsched__cron em {
+  overflow: hidden;
+  color: #a3aec1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agsched__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.agsched__trigger {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.agsched__trigger--cron {
+  color: #2f6bd8;
+  background: #eef4ff;
+}
+
+.agsched__trigger--once {
+  color: #ad6800;
+  background: #fff7e6;
+}
+
+.agsched__placeholder {
+  color: #c3cbd9;
+}
+
+.agsched__ops {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.agsched__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid #f0f4fa;
+}
+
+.agsched__total {
+  color: #8a97b0;
+  font-size: 12px;
+}
+
+.agsched__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 46px 0;
+  color: #b3bdcd;
+  font-size: 13px;
+}
+
+.agsched__empty-icon {
+  color: #cfd8e6;
+  font-size: 34px;
+}
+
+/* 列设置下拉面板 */
+.agsched__columns {
+  display: flex;
+  min-width: 148px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(31, 39, 55, 0.12);
+}
+
+.agsched__columns-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4b586e;
+  font-size: 13px;
+}
+
+/* ===================== 新增 / 编辑弹窗 ===================== */
+.agsched-form :deep(.ant-form-item) {
+  margin-bottom: 16px;
+}
+
+.agsched-form :deep(.ant-form-item-label > label) {
+  color: #4b586e;
+  font-size: 13px;
+}
+
+.agsched-form__hint {
+  color: #96a2b6;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* 六段选择器：3 列网格 */
+.agsched-form__cron {
+  display: grid;
+  padding: 14px 16px;
+  border: 1px solid #eef2f9;
+  border-radius: 10px;
+  background: #fbfcff;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.agsched-form__cron-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.agsched-form__cron-label {
+  flex: 0 0 14px;
+  color: #8a97b0;
+  font-size: 13px;
+}
+
+.agsched-form__once {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agsched-form__cron-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.agsched-form__cron-title {
+  color: #4b586e;
+  font-size: 13px;
+}
+
+.agsched-form__cron-desc {
+  color: #96a2b6;
+  font-size: 12px;
+}
+
+/* 常用模板 */
+.agsched-form__presets {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f7f9fd;
+  gap: 10px;
+}
+
+.agsched-form__presets-title {
+  color: #4b586e;
+  font-size: 13px;
+}
+
+.agsched-form__preset-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.agsched-form__preset-label {
+  flex: 0 0 84px;
+  padding-top: 3px;
+  color: #96a2b6;
+  font-size: 12px;
+}
+
+.agsched-form__preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agsched-form__chip {
+  padding: 3px 10px;
+  color: #4b586e;
+  border: 1px solid #e4eaf4;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  line-height: 20px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.agsched-form__chip:hover {
+  color: #1677ff;
+  border-color: #bcd6ff;
+}
+
+.agsched-form__chip.is-active {
+  color: #1677ff;
+  border-color: #1677ff;
+  background: #eef4ff;
+}
+
+/* 结果推送 */
+.agsched-form__push :deep(.ant-form-item-label) {
+  padding-bottom: 4px;
+}
+
+.agsched-form__pick {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  color: #1677ff;
+  border: 1px dashed #b9caff;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.agsched-form__pick:hover {
+  border-color: #1677ff;
+  background: #f5f9ff;
+}
+
+.agsched-form__picked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.agsched-form__pill {
+  display: inline-flex;
+  max-width: 220px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  color: #5268e9;
+  border-radius: 7px;
+  background: #eef1ff;
+  font-size: 12px;
+}
+
+.agsched-form__pill-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agsched-form__pill em {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(82, 104, 233, 0.12);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.agsched-form__pill button {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  place-items: center;
+  padding: 0;
+  color: #8593d8;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.agsched-form__pill button:hover {
+  color: #f0526b;
+  background: #fff;
+}
+
+.agsched-form__pick-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  color: #1677ff;
+  border: 1px dashed #b9caff;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.agsched-form__pick-inline:hover {
+  border-color: #1677ff;
+  background: #f5f9ff;
+}
+
+@media (max-width: 1200px) {
+  .agsched-form__cron {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

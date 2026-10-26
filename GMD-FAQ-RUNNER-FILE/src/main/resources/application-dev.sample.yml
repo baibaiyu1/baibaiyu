@@ -1,0 +1,42 @@
+spring:
+  data:
+    redis:
+      host: YOUR_REDIS_HOST
+      port: 6379
+      password: YOUR_REDIS_PASSWORD
+      database: 7
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://YOUR_DB_HOST:3306/gmd_faq_server?useSSL=false&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&serverTimezone=GMT%2B8&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true
+    username: YOUR_DB_USER
+    password: YOUR_DB_PASSWORD
+    hikari:
+      minimum-idle: 2
+      maximum-pool-size: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+# 技能文件同步服务配置
+skill-sync:
+  # console 服务地址（必须与 console 实际配置一致）
+  console-url: http://YOUR_CONSOLE_HOST:3060
+  # 下载超时时间（秒）
+  download-timeout-seconds: 120
+  # 本地 skill 文件根目录
+  local-base-dir: .baibaiyu
+
+# 心跳上报配置
+# Docker 部署时通过环境变量 GMD_FAQ_NODE_ID 配置节点标识，无需在此设置 node-id
+heartbeat:
+  enabled: true
+  console-url: http://YOUR_CONSOLE_HOST:3060
+  service-type: FILE
+  port: ${server.port}

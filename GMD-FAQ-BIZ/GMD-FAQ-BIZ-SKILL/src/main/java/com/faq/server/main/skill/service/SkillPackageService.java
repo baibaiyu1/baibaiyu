@@ -1,0 +1,54 @@
+package com.gmd.faq.server.main.skill.service;
+
+import com.gmd.faq.server.main.common.entity.SkillPackage;
+import com.gmd.faq.server.main.common.vo.SkillPackageVO;
+import com.baomidou.mybatisplus.extension.service.IService;
+
+import java.util.List;
+
+/**
+ * 技能包Service
+ *
+ */
+public interface SkillPackageService extends IService<SkillPackage> {
+    List<Object> usedWithAgent(List<Long> ids);
+
+    /**
+     * 获取所有分类
+     *
+     * @return 分类列表
+     */
+    List<String> listCategories();
+
+    boolean deleteByIds(List<Long> ids);
+
+    /**
+     * 更新技能包并触发关联智能体重新注册
+     *
+     * @param entity 技能包
+     * @return 是否成功
+     */
+    boolean doUpdate(SkillPackage entity);
+
+    /**
+     * 仅更新技能别名（不触发关联智能体重新注册）
+     *
+     * @param id    技能包ID
+     * @param alias 技能别名，空串表示清空
+     * @return 是否成功
+     */
+    boolean updateAlias(Long id, String alias);
+
+    /**
+     * 获取技能包详情（包含关联的工具ID列表）
+     *
+     * @param id 技能包ID
+     * @return 技能包VO
+     */
+    SkillPackageVO getDetail(Long id);
+
+    /** 文件与关联项写操作先在服务层校验资源归属。 */
+    SkillPackage requireManageable(Long id);
+
+    boolean updateTools(Long id, List<Long> toolIds);
+}

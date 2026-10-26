@@ -1,0 +1,64 @@
+package com.gmd.faq.server.main.node.base.context;
+
+import com.gmd.faq.server.main.node.base.request.RequestParams;
+import com.gmd.faq.server.main.node.base.NodeOutput;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 描述：节点上下文
+ *
+ **/
+@Getter
+@Setter
+public class NodeContext {
+    /**
+     * 工作流实例ID
+     */
+    private String workflowInstanceId;
+    /**
+     * 变量上下文
+     * 用于存储流程执行过程中的所有变量（包括各个节点的输出）
+     */
+    private VariableContext variables;
+    /**
+     * 请求参数
+     */
+    private RequestParams requestParams;
+    /**
+     * 下一个节点ID
+     * 用于存储流程执行过程中的下一个节点ID。
+     * 该节点ID为null时，表示下一个节点不是由当前节点决定的。此时开发者将通过节点的出边来决定下一个节点。
+     */
+    private String nextNodeId;
+    /**
+     * 节点执行轨迹，严格按照本次运行的节点执行顺序记录。
+     */
+    private final List<NodeOutput> executionTrace;
+    /**
+     * 是否跳过节点配置校验（单节点独立运行时使用）。
+     */
+    private boolean skipVerify = false;
+
+    public NodeContext(String workflowInstanceId) {
+        this.workflowInstanceId = workflowInstanceId;
+        this.variables = new VariableContext();
+        this.executionTrace = new ArrayList<>();
+    }
+
+    /**
+     * 重置下一个节点ID
+     */
+    public void resetNextNodeId() {
+        this.nextNodeId = null;
+    }
+
+    public void recordExecution(NodeOutput output) {
+        if (output != null) {
+            executionTrace.add(output);
+        }
+    }
+}

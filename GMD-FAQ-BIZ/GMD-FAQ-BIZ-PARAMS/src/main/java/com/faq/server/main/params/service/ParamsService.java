@@ -1,0 +1,15 @@
+package com.gmd.faq.server.main.params.service;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.gmd.faq.server.main.common.entity.Params;
+
+/**
+ * 描述：系统参数
+ *
+ **/
+public interface ParamsService extends IService<Params> {
+    String fetchValueByKey(String key);
+
+    boolean saveV2(Params params);
+    boolean updateByIdV2(Params params);
+}

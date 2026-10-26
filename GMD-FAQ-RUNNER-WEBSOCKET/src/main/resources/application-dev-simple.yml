@@ -1,0 +1,35 @@
+# ============================================================
+# Docker 环境配置（spring.profiles.active=docker）
+# 所有值均从环境变量读取，由 docker-compose 注入
+# ============================================================
+
+server:
+  port: 3064
+
+spring:
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: YOUR_PASSWORD
+      database: 7
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+logging:
+  level:
+    root: WARN
+    com.gmd.faq.server.main.websocket: INFO
+jwt:
+  secret: ${JWT_SECRET:replace-with-your-own-random-secret-at-least-32-bytes}
+
+# WebSocket 心跳上报配置
+heartbeat:
+  enabled: true
+  console-url: http://localhost:3060
+  interval-seconds: 30

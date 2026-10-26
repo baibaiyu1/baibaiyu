@@ -1,0 +1,191 @@
+/**
+ * 系统设置样式
+ *
+ */
+
+// 设置容器 - 内容居中，两侧留白
+.settings-container {
+  display: flex;
+  height: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+// 左侧导航
+.settings-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  padding: 32px 24px 32px 40px;
+  overflow-y: auto;
+}
+
+.settings-menu-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  padding-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+.settings-menu-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 9px 12px;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  color: var(--color-text-regular);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+
+  &:hover {
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-base);
+  }
+
+  &.active {
+    color: var(--color-primary);
+    background-color: var(--color-bg-base);
+    font-weight: 500;
+  }
+}
+
+.settings-menu-icon {
+  font-size: 16px;
+}
+
+.settings-menu-label {
+  font-size: var(--font-size-base);
+}
+
+// 分割线
+.settings-divider {
+  width: 1px;
+  align-self: stretch;
+  background-color: var(--color-border-light);
+  margin: 32px 0;
+}
+
+// 右侧内容区
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.settings-content-header {
+  flex-shrink: 0;
+  padding: 32px 40px 12px;
+}
+
+.settings-content-title {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+// 页面正文：树形页面自行贴边并内部滚动，普通页面保留左右留白
+.settings-content-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 40px 32px;
+}
+
+// 树形页面（用户列表 / 部门列表 / 菜单管理）需要撑满正文区
+.settings-content-body > .settings-user,
+.settings-content-body > .settings-dept,
+.settings-content-body > .settings-menu-manage {
+  height: 100%;
+}
+
+// 通用页面标题
+.settings-page-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xl);
+}
+
+// ========== 我的账户 ==========
+
+.my-account-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.my-account-avatar {
+  background-color: var(--color-primary);
+}
+
+.my-account-name {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.my-account-username {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.my-account-form {
+  max-width: 480px;
+}
+
+.my-account-section-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border-lighter);
+}
+
+// ========== 系统介绍 ==========
+
+.system-intro-container {
+  max-width: 640px;
+  max-height: calc(100vh - 120px);
+  padding-right: 5px;
+  overflow: auto;
+}
+
+.system-intro-title {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: var(--line-height-relaxed);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.system-intro-paragraph {
+  font-size: var(--font-size-base);
+  line-height: 1.8;
+  color: var(--color-text-regular);
+  margin-bottom: var(--spacing-lg);
+
+  strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+}
+
+.system-intro-slogan {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-primary);
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--color-border-lighter);
+  margin-top: var(--spacing-2xl);
+}

@@ -1,0 +1,26 @@
+-- 仅保存运行身份、计数和耗时；不保存提示词、工具参数、输出正文或异常消息。
+CREATE TABLE IF NOT EXISTS gmd_faq_agent_telemetry (
+    id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    session_id BIGINT NOT NULL,
+    run_id VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    agent_id BIGINT NOT NULL,
+    operation VARCHAR(16) NOT NULL,
+    model_name VARCHAR(128) DEFAULT NULL,
+    state VARCHAR(16) NOT NULL,
+    elapsed_ms BIGINT DEFAULT NULL,
+    input_tokens BIGINT DEFAULT NULL,
+    output_tokens BIGINT DEFAULT NULL,
+    reasoning_tokens BIGINT DEFAULT NULL,
+    cached_tokens BIGINT DEFAULT NULL,
+    cache_creation_tokens BIGINT DEFAULT NULL,
+    tool_prompt_tokens BIGINT DEFAULT NULL,
+    error_stage VARCHAR(16) DEFAULT NULL,
+    error_type VARCHAR(128) DEFAULT NULL,
+    started_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    completed_at DATETIME(3) DEFAULT NULL,
+    PRIMARY KEY (id),
+    KEY idx_telemetry_session (tenant_id,user_id,session_id,started_at),
+    KEY idx_telemetry_run (tenant_id,run_id,agent_id)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

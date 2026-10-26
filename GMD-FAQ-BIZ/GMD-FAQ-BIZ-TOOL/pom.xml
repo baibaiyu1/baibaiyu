@@ -1,0 +1,39 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.gmd.faq.server.main</groupId>
+        <artifactId>GMD-FAQ-BIZ</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>GMD-FAQ-BIZ-TOOL</artifactId>
+    <packaging>jar</packaging>
+
+    <name>GMD-FAQ-BIZ-TOOL</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.gmd.faq.server.main</groupId>
+            <artifactId>GMD-FAQ-COMMON</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.gmd.faq.server.main</groupId>
+            <artifactId>GMD-FAQ-BIZ-RESOURCE</artifactId>
+        </dependency>
+        <!-- OpenAPI 导入：支持 YAML 格式的接口文档（与 GMD-FAQ-WORKFLOW 使用同一依赖） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+    </dependencies>
+</project>

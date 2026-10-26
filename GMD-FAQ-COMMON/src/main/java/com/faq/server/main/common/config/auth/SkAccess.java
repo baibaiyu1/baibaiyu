@@ -1,0 +1,16 @@
+package com.gmd.faq.server.main.common.config.auth;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * 描述：允许通过sk访问
+ *
+ **/
+@Target({ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface SkAccess {
+    boolean required() default true;
+}

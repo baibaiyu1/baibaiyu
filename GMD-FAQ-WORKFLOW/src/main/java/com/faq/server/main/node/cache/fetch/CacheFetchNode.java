@@ -1,0 +1,102 @@
+package com.gmd.faq.server.main.node.cache.fetch;
+
+import com.gmd.faq.server.main.cache.mapper.CacheMapper;
+import com.gmd.faq.server.main.common.consts.NodeConst;
+import com.gmd.faq.server.main.common.entity.Cache;
+import com.gmd.faq.server.main.common.util.FuncUtils;
+import com.gmd.faq.server.main.node.base.EnhancedNode;
+import com.gmd.faq.server.main.node.base.NodeOutput;
+import com.gmd.faq.server.main.common.enums.NodeType;
+import com.gmd.faq.server.main.node.base.cache.RedisOperator;
+import com.gmd.faq.server.main.node.base.cache.RedisOperatorFactory;
+import com.gmd.faq.server.main.node.base.context.NodeContext;
+import com.gmd.faq.server.main.node.base.spring.SpringContextHolder;
+import com.gmd.faq.server.main.node.base.template.TemplateFormatter;
+import com.gmd.faq.server.main.node.base.template.TemplateFormatterFactory;
+import com.gmd.faq.server.main.node.base.verify.VerifyFail;
+import com.gmd.faq.server.main.node.base.verify.VerifyResult;
+import lombok.Getter;
+
+import java.util.Map;
+
+/**
+ * 描述：缓存获取节点
+ * 根据配置的缓存ID获取 Redis 连接，从 Redis 中获取指定 key 的值。
+ *
+ **/
+public class CacheFetchNode extends EnhancedNode {
+
+    @Getter
+    private final Config config;
+    private final TemplateFormatter formatter;
+
+    public CacheFetchNode(String id, String name, Config config) {
+        super(id, name, NodeType.CACHE_FETCH);
+        this.config = config;
+        this.formatter = TemplateFormatterFactory.createFormatter(config.getFormatterType());
+    }
+
+    @Override
+    protected NodeOutput doExecute(Map<String, Object> inputs, NodeOutput output, NodeContext context) {
+        try {
+            return successNodeOutput(inputs, output);
+        } catch (Exception e) {
+            return executionNodeOutput(e, output);
+        }
+    }
+
+    /**
+     * 创建成功输出
+     */
+    private NodeOutput successNodeOutput(Map<String, Object> inputs, NodeOutput output) {
+        CacheMapper mapper = SpringContextHolder.getBean(CacheMapper.class);
+        Cache cache = mapper.selectById(config.getCacheId());
+        if (cache == null) {
+            throw new RuntimeException("缓存配置不存在，缓存ID: " + config.getCacheId());
+        }
+        if (!Boolean.TRUE.equals(cache.getEnabled())) {
+            throw new RuntimeException("缓存未启用，缓存ID: " + config.getCacheId());
+        }
+
+        RedisOperator operator = RedisOperatorFactory.getOperator(cache);
+        String resolvedKey = resolveTemplate(config.getKey(), inputs);
+        String value = operator.get(resolvedKey);
+
+        // 将缓存获取信息追加到执行上下文中
+        output.addExecutionContext("cacheKey", resolvedKey);
+
+        output.addOutput(NodeConst.DEFAULT_OUTPUT_NAME, value);
+        output.markComplete();
+        return output;
+    }
+
+    /**
+     * 解析模板字符串中的动态变量
+     */
+    private String resolveTemplate(String template, Map<String, Object> inputs) {
+        if (template == null || inputs == null || inputs.isEmpty()) {
+            return template;
+        }
+        Object resolved = formatter.format(template, inputs, false);
+        return resolved != null ? resolved.toString() : template;
+    }
+
+    /**
+     * 异常节点输出
+     */
+    private NodeOutput executionNodeOutput(Exception e, NodeOutput output) {
+        output.markFailed(getName() + "执行失败: " + e.getMessage());
+        return output;
+    }
+
+    @Override
+    public VerifyResult verifyConfig(Map<String, Object> inputs) {
+        if (FuncUtils.isEmpty(config.getCacheId())) {
+            return VerifyResult.invalid(new VerifyFail("cacheId", "缓存ID不能为空"));
+        }
+        if (FuncUtils.isEmpty(config.getKey())) {
+            return VerifyResult.invalid(new VerifyFail("key", "缓存键不能为空"));
+        }
+        return VerifyResult.valid();
+    }
+}

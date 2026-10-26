@@ -1,0 +1,14 @@
+package com.gmd.faq.server.main.engine.workspace.hook;
+
+/**
+ * 描述：工作空间安全异常，所有路径/命令验证失败时抛出此异常
+ *
+ **/
+public class WorkspaceSecurityException extends RuntimeException {
+
+    private static final String HINT_SUFFIX = " Please read and follow the skill 'workspace_path_and_execution_rules'.";
+
+    public WorkspaceSecurityException(String message) {
+        super(message + HINT_SUFFIX);
+    }
+}

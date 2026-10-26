@@ -1,0 +1,152 @@
+/**
+ * 系统设置 - 树形面板样式（部门树 / 菜单树共用）
+ *
+ * 由 `SettingsTreePanel.vue` 以非 scoped 方式引入，同时命中面板骨架与递归子节点
+ * （`SettingsTreeNodeItem.vue`），避免 scoped 的 `data-v-*` 作用域失配。
+ *
+ */
+
+// ===== 面板骨架 =====
+.settings-tree-panel {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 236px;
+  min-height: 0;
+  border-right: 1px solid var(--color-border-light, #eee);
+}
+
+.settings-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-base) var(--spacing-md) var(--spacing-sm);
+}
+
+.settings-tree-header-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.settings-tree-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.settings-tree-search {
+  padding: 0 var(--spacing-md) var(--spacing-sm);
+}
+
+.settings-tree-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 var(--spacing-sm) var(--spacing-md);
+  overflow-y: auto;
+}
+
+.settings-tree-empty {
+  padding: var(--spacing-lg) 0;
+  color: var(--color-text-placeholder);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+// ===== 树节点 =====
+// 行容器：只负责整行底色；内层按钮负责选中；行内操作按钮单独绝对定位在右侧保留区内。
+.settings-tree-node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--border-radius-md);
+  transition: background-color var(--transition-fast);
+
+  &:hover {
+    background-color: #f2f4f7;
+  }
+
+  &.active {
+    background-color: #e8f1ff;
+  }
+}
+
+.settings-tree-node-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
+  border: none;
+  border-radius: var(--border-radius-md);
+  background: transparent;
+  color: var(--color-text-regular);
+  font-size: var(--font-size-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+
+  &:hover {
+    color: var(--color-text-primary);
+  }
+
+  .settings-tree-node.active & {
+    color: var(--color-primary);
+    font-weight: 500;
+  }
+
+  // 给右侧行内操作按钮预留位置，避免文字被图标压住
+  .settings-tree-node.has-actions & {
+    padding-right: 54px;
+  }
+}
+
+.settings-tree-node-actions {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%);
+}
+
+.settings-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--color-text-placeholder);
+  font-size: 11px;
+
+  &.placeholder {
+    color: var(--color-border-base);
+    font-size: 12px;
+  }
+}
+
+.settings-tree-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.settings-tree-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.settings-tree-badge {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 9px;
+  background-color: rgba(15, 116, 255, 0.1);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  line-height: 17px;
+}

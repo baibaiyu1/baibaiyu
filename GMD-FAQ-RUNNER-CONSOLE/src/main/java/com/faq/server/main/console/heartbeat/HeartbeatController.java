@@ -1,0 +1,78 @@
+package com.gmd.faq.server.main.console.heartbeat;
+
+import com.gmd.faq.server.main.common.config.auth.PassAuth;
+import com.gmd.faq.server.main.common.r.R;
+import com.gmd.faq.server.main.console.heartbeat.model.NodeStatusVO;
+import com.gmd.faq.server.main.console.heartbeat.model.WebSocketNodeVO;
+import com.gmd.faq.server.main.heartbeat.HeartbeatPayload;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+import java.util.List;
+import com.gmd.faq.server.main.common.config.auth.PermNeed;
+
+/**
+ * 描述：心跳上报与节点状态查询接口
+ *
+ **/
+@RestController
+@RequestMapping("/heartbeat")
+@RequiredArgsConstructor
+public class HeartbeatController {
+
+    private final NodeRegistry nodeRegistry;
+
+    private final WebSocketNodeRegistry webSocketNodeRegistry;
+
+    /**
+     * 接收执行节点心跳上报（异步非阻塞，无需用户鉴权）
+     *
+     * @param payload 心跳请求体
+     * @return 异步操作结果
+     */
+    @PassAuth
+    @PostMapping("/report")
+    public Mono<R<Void>> report(@RequestBody HeartbeatPayload payload) {
+        return Mono.fromRunnable(() -> nodeRegistry.report(payload))
+                .subscribeOn(Schedulers.boundedElastic())
+                .then(Mono.just(R.data(null)));
+    }
+
+    /**
+     * 查询所有执行节点状态（管理员权限）
+     *
+     * @return 节点状态列表
+     */
+    @PermNeed({"monitor:online:list"})
+    @GetMapping("/nodes")
+    public R<List<NodeStatusVO>> listNodes() {
+        return R.data(nodeRegistry.getAllNodes());
+    }
+
+    /**
+     * 接收 WebSocket 服务心跳上报（异步非阻塞，无需用户鉴权）
+     *
+     * @param payload 心跳请求体
+     * @return 异步操作结果
+     */
+    @PassAuth
+    @PostMapping("/websocket/report")
+    public Mono<R<Void>> reportWebSocket(@RequestBody HeartbeatPayload payload) {
+        return Mono.fromRunnable(() -> webSocketNodeRegistry.report(payload))
+                .subscribeOn(Schedulers.boundedElastic())
+                .then(Mono.just(R.data(null)));
+    }
+
+    /**
+     * 查询所有 WebSocket 节点状态（管理员权限）
+     *
+     * @return WebSocket 节点状态列表
+     */
+    @PermNeed({"monitor:online:list"})
+    @GetMapping("/websocket")
+    public R<List<WebSocketNodeVO>> listWebSocketNodes() {
+        return R.data(webSocketNodeRegistry.getAllNodes());
+    }
+}

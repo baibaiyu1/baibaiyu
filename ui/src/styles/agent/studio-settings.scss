@@ -1,0 +1,242 @@
+/**
+ * 智能体编排工作台 —— 「Agent 设置」弹窗样式
+ *
+ * 版式参考参照页 `AgentSettingsModal`：卡片式大弹窗 + 左侧竖排 timeline 导航
+ * （序号 + 轨道 + 标签 + hint）+ 右侧滚动内容区 + 底部按钮条。
+ *
+ */
+
+.agstudio-settings-modal {
+  .ant-modal {
+    top: 7vh;
+    padding-bottom: 0;
+  }
+
+  .ant-modal-content {
+    padding: 0;
+    overflow: hidden;
+    border-radius: 16px;
+  }
+
+  .ant-modal-body {
+    padding: 0;
+  }
+}
+
+.agstudio-settings {
+  display: flex;
+  height: 86vh;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* ===================== 头部 ===================== */
+.agstudio-settings__head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eef2f9;
+}
+
+.agstudio-settings__head h2 {
+  margin: 0;
+  color: #1f2737;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.agstudio-settings__head p {
+  margin: 6px 0 0;
+  color: #7f8fa9;
+  font-size: 13px;
+}
+
+.agstudio-settings__head p span {
+  color: #1677ff;
+  font-weight: 600;
+}
+
+.agstudio-settings__close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  color: #9aa8be;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.agstudio-settings__close:hover {
+  color: #445064;
+  background: #f4f7fc;
+}
+
+/* ===================== 正文 ===================== */
+.agstudio-settings__body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 左：timeline 导航 */
+.agstudio-settings__nav {
+  display: flex;
+  width: 248px;
+  flex: 0 0 248px;
+  flex-direction: column;
+  padding: 24px 16px;
+  overflow-y: auto;
+  border-right: 1px solid #eef2f9;
+  background: #fafcff;
+}
+
+.agstudio-settings__nav nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.agstudio-settings__nav-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 10px 10px 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.agstudio-settings__nav-item:hover {
+  background: #f2f6ff;
+}
+
+.agstudio-settings__nav-item.is-active {
+  background: #eef4ff;
+}
+
+.agstudio-settings__nav-rail {
+  position: absolute;
+  top: 34px;
+  bottom: -6px;
+  left: 21px;
+  width: 1px;
+  background: #e4ebf7;
+}
+
+.agstudio-settings__nav-item:last-child .agstudio-settings__nav-rail {
+  display: none;
+}
+
+.agstudio-settings__nav-index {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  color: #7f8fa9;
+  border: 1px solid #dbe4f2;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 11px;
+  transition: all 0.16s ease;
+}
+
+.agstudio-settings__nav-item.is-active .agstudio-settings__nav-index {
+  color: #fff;
+  border-color: #1677ff;
+  background: #1677ff;
+}
+
+.agstudio-settings__nav-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 1px;
+}
+
+.agstudio-settings__nav-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #313c51;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agstudio-settings__nav-item.is-active .agstudio-settings__nav-label {
+  color: #1677ff;
+}
+
+.agstudio-settings__nav-hint {
+  color: #9aa8be;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* 右：滚动内容 */
+.agstudio-settings__content {
+  min-width: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  background: #fff;
+  scrollbar-width: thin;
+}
+
+.agstudio-settings__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.agstudio-settings__panel-head {
+  margin-bottom: 14px;
+}
+
+.agstudio-settings__panel-head h4 {
+  margin: 0;
+  color: #1f2737;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.agstudio-settings__panel-head p {
+  margin: 6px 0 0;
+  color: #9aa8be;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ===================== 底部 ===================== */
+.agstudio-settings__footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid #eef2f9;
+  background: #fafcff;
+}
+
+@media (max-width: 900px) {
+  .agstudio-settings {
+    height: 92vh;
+  }
+
+  .agstudio-settings__nav {
+    display: none;
+  }
+}

@@ -1,0 +1,24 @@
+export const WS_CONFIG = {
+  URL: (() => {
+    const isHttps = window.location.protocol === 'https:';
+    const protocol = isHttps ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.hostname}${window.location.port ? ':' + window.location.port : ''}/api/ws/gmd-faq`;
+  })(),
+  MAX_RECONNECT_ATTEMPTS: 1440, // 约6小时
+  INITIAL_RECONNECT_DELAY: 45000, // 45秒
+  MAX_RECONNECT_DELAY: 300000, // 最大重连延迟5分钟
+  PING_INTERVAL: 30000, // 30秒发送一次ping
+  PONG_TIMEOUT: 5000, // 等待pong响应超时时间
+};
+
+export const WS_MESSAGE_TYPES = {
+  PING: 'PING',
+  PONG: 'PONG',
+
+  CLIENT: 'CLIENT',
+  WORKSPACE_FILE_CHANGE: 'WORKSPACE_FILE_CHANGE',
+  /** 智能体写出/修改了工作空间文件（对话产物） */
+  ARTIFACT_CREATED: 'ARTIFACT_CREATED',
+} as const;
+
+export type WSMessageType = typeof WS_MESSAGE_TYPES[keyof typeof WS_MESSAGE_TYPES];

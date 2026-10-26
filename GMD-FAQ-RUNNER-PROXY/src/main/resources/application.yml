@@ -1,0 +1,26 @@
+server:
+  port: 3062
+
+spring:
+  application:
+    name: gmd-faq-proxy
+  main:
+    banner-mode: off
+
+shell:
+  default-timeout: 300
+  max-timeout: 3600
+  max-output-size: 52428800
+  log-command: false
+
+logging:
+  level:
+    root: WARN
+    com.gmd.faq.server.main.shellproxy: INFO
+
+# 心跳上报配置
+heartbeat:
+  enabled: true
+  console-url: http://localhost:3060
+  service-type: PROXY
+  port: ${server.port}
