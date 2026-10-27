@@ -12,3 +12,12 @@ spring:
     time-zone: Asia/Shanghai
     serialization:
       write-dates-as-timestamps: false
+
+gmd:
+  faq:
+    web-search:
+      bocha:
+        api-key: ${BOCHA_API_KEY:}
+        api-url: ${BOCHA_API_URL:https://api.bocha.cn/v1/web-search}
+        timeout-seconds: ${BOCHA_TIMEOUT_SECONDS:20}
+        max-results: ${BOCHA_MAX_RESULTS:10}

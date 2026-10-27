@@ -47,7 +47,7 @@ public class SensitiveWordHelper {
         }
 
         String sensitive_words = String.join("、", sensitiveWords);
-        String sensitive_word_enhancement = SENSITIVE_WORD_ENHANCEMENT.replaceAll("::SENSITIVE_WORDS::", sensitive_words);
+        String sensitive_word_enhancement = SENSITIVE_WORD_ENHANCEMENT.replace("::SENSITIVE_WORDS::", sensitive_words);
         return prompt + "\n\n" + sensitive_word_enhancement;
     }
 }

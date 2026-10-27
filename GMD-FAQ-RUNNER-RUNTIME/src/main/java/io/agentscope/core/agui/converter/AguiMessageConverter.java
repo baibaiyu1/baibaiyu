@@ -629,6 +629,7 @@ public class AguiMessageConverter {
         AgentContext agentContext = AgentContext.get();
         List<String> fileIds = agentContext.getFileIds();
         if (fileIds != null && !fileIds.isEmpty()) {
+            BeanUtils.getBean(com.gmd.faq.server.main.engine.tool.DocumentTextAccess.class).authorizeForSession(agentContext);
 
             // 基于 附件 构建 多模态 ContentBlock
             List<ContentBlock> blocks = new LinkedList<>();

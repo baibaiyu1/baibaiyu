@@ -283,6 +283,7 @@ const addItem = (e: any) => {
             <ARadioGroup v-model:value="formData.action">
               <ARadio :value="SensitiveWordAction.BLOCK">阻止</ARadio>
               <ARadio :value="SensitiveWordAction.WARN">警告</ARadio>
+              <ARadio :value="SensitiveWordAction.REPLACE">替换</ARadio>
             </ARadioGroup>
           </AFormItem>
         </ACol>

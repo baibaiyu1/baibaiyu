@@ -38,6 +38,7 @@ import com.gmd.faq.server.main.common.config.auth.PermNeed;
 @RestController
 @RequestMapping("/skill")
 @RequiredArgsConstructor
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 public class SkillFileController {
 
     private final SkillFileService skillFileService;
@@ -475,6 +476,7 @@ public class SkillFileController {
             throw new BusinessException("技能包不存在");
         }
         publishSkillSync(skillId);
+        skillPackageService.refreshBoundAgents(skillId);
         return R.data(true);
     }
 

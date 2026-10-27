@@ -24,6 +24,7 @@ public class FileTextExtractService {
 
     private final AttachService attachService;
     private final DocumentParser documentParser;
+    private final DocumentTextAccess documentTextAccess;
 
     /**
      * 提取文件纯文本并保存为 .baibaiyu 文件
@@ -32,11 +33,7 @@ public class FileTextExtractService {
      * @return true=解析成功, false=文件类型不支持或解析失败
      */
     public boolean extractAndSave(Long fileId) {
-        Attach attach = attachService.getById(fileId);
-        if (attach == null) {
-            log.warn("附件不存在, fileId={}", fileId);
-            return false;
-        }
+        Attach attach = documentTextAccess.requireOwned(fileId);
 
         String originalName = attach.getOriginalName();
         if (documentParser.isNotSupported(originalName)) {

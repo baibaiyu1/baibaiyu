@@ -27,6 +27,7 @@ public class IAgentFactory {
     private final ReActAgentHelper reActAgentHelper;
     private final AgentDefinitionService agentDefinitionService;
     private final AgentCodeExecutionService agentCodeExecutionService;
+    private final com.gmd.faq.server.main.agent.service.CodeExecutionConfigService codeExecutionConfigService;
 
     /**
      * 根据Agent定义ID获取Agent
@@ -76,7 +77,8 @@ public class IAgentFactory {
             Long codeExecutionId = getCodeExecutionId(definition.getId());
 
             // AgentMetadataStore 中不存在 workspace_enabled 则表示没有开启工作空间能力
-            if (codeExecutionId != null) {
+            CodeExecutionConfig execution = codeExecutionId == null ? null : codeExecutionConfigService.getById(codeExecutionId);
+            if (execution != null && Boolean.TRUE.equals(execution.getEnabled())) {
                 AgentMetadataStore.put(reActAgent.getAgentId(), "workspace_enabled", true);
             }
             return reActAgent;

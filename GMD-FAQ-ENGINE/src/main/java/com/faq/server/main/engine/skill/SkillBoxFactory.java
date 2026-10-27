@@ -44,6 +44,7 @@ public class SkillBoxFactory {
     private final AgentSkillPackageService agentSkillPackageService;
     private final SkillToolService skillToolService;
     private final ToolService toolService;
+    private final com.gmd.faq.server.main.resource.visibility.service.ResourceVisibilityService resourceVisibilityService;
 
     /**
      * 获取SkillBox
@@ -163,6 +164,11 @@ public class SkillBoxFactory {
         List<Long> toolIds = skillToolService.getToolIds(skillPackage.getId());
         List<ToolConfig> toolConfigs = null;
         if (!toolIds.isEmpty()) {
+            // 共享智能体沿用技能维护方配置的依赖，不要求使用者单独获授每个工具。
+            // 对存量关联再次校验，避免旧的越权绑定继续进入运行工具集。
+            Long accountId = "PERSONAL".equals(skillPackage.getOwnershipType()) ? skillPackage.getOwnerId()
+                    : skillPackage.getMaintainerId() != null ? skillPackage.getMaintainerId() : skillPackage.getCreatedBy();
+            toolIds.forEach(toolId -> resourceVisibilityService.assertUsableForAccount("TOOL", toolId, accountId));
             toolConfigs = toolService.listByIds(toolIds);
             ToolkitFactory.registerTools(toolkit, toolConfigs, role);
         }
@@ -270,7 +276,7 @@ public class SkillBoxFactory {
      * @param config   代码执行配置
      */
     private void configureCodeExecution(SkillBox skillBox, Toolkit toolkit, CodeExecutionConfig config) {
-        if (skillBox == null || config == null) {
+        if (skillBox == null || config == null || !Boolean.TRUE.equals(config.getEnabled())) {
             return;
         }
 

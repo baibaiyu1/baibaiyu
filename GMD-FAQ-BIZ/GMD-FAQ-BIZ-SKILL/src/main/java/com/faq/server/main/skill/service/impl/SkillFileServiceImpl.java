@@ -18,6 +18,33 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class SkillFileServiceImpl extends ServiceImpl<SkillFileMapper, SkillFile> implements SkillFileService {
+    private final com.gmd.faq.server.main.skill.service.SkillPackageService skillPackageService;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean save(SkillFile file) {
+        boolean saved = super.save(file);
+        if (saved) skillPackageService.refreshBoundAgents(file.getSkillId());
+        return saved;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateById(SkillFile file) {
+        SkillFile current = getById(file.getId());
+        boolean updated = super.updateById(file);
+        if (updated && current != null) skillPackageService.refreshBoundAgents(current.getSkillId());
+        return updated;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeById(java.io.Serializable id) {
+        SkillFile current = getById(id);
+        boolean removed = super.removeById(id);
+        if (removed && current != null) skillPackageService.refreshBoundAgents(current.getSkillId());
+        return removed;
+    }
 
     @Override
     public List<SkillFile> listBySkillId(Long skillId) {
@@ -49,23 +76,29 @@ public class SkillFileServiceImpl extends ServiceImpl<SkillFileMapper, SkillFile
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteBySkillId(Long skillId) {
-        return remove(new LambdaQueryWrapper<SkillFile>()
+        boolean removed = remove(new LambdaQueryWrapper<SkillFile>()
                 .eq(SkillFile::getSkillId, skillId));
+        if (removed) skillPackageService.refreshBoundAgents(skillId);
+        return removed;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean removeBySkillIdAndPath(Long skillId, String filePath) {
-        return remove(new LambdaQueryWrapper<SkillFile>()
+        boolean removed = remove(new LambdaQueryWrapper<SkillFile>()
                 .eq(SkillFile::getSkillId, skillId)
                 .eq(SkillFile::getFilePath, filePath));
+        if (removed) skillPackageService.refreshBoundAgents(skillId);
+        return removed;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean removeBySkillIdAndPathPrefix(Long skillId, String pathPrefix) {
-        return remove(new LambdaQueryWrapper<SkillFile>()
+        boolean removed = remove(new LambdaQueryWrapper<SkillFile>()
                 .eq(SkillFile::getSkillId, skillId)
                 .likeRight(SkillFile::getFilePath, pathPrefix));
+        if (removed) skillPackageService.refreshBoundAgents(skillId);
+        return removed;
     }
 }

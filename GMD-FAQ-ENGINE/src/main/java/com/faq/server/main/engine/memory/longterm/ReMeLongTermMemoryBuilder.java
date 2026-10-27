@@ -17,7 +17,7 @@ import java.time.Duration;
  * ReMe 长期记忆构建器
  * <p>
  * 构建 ReMeLongTermMemory 实例，基于阿里通义千问的记忆服务。
- * 用户标识从 AgentContext 中自动获取（优先使用 nickname，其次 username，最后 id）。
+ * 用户标识使用服务端上下文中的租户 ID 与账号 ID。
  * 配置项：
  * - apiBaseUrl: ReMe 服务地址
  * - timeout: 请求超时时间（秒）

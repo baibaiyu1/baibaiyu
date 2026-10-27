@@ -1,12 +1,9 @@
 package com.gmd.faq.server.main.engine.prompt;
 
 import com.gmd.faq.server.main.common.entity.AgentDefinition;
-import com.gmd.faq.server.main.common.entity.SensitiveWordConfig;
 import com.gmd.faq.server.main.engine.workspace.hook.ToolConstants;
-import com.gmd.faq.server.main.sensitive.service.SensitiveWordConfigService;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -16,10 +13,8 @@ import java.util.List;
 @Component
 public class AgentSysPromptFactory {
     private final AgentSysPrompt primaryAgentSysPrompt;
-    private final SensitiveWordConfigService sensitiveWordConfigService;
 
-    public AgentSysPromptFactory(List<AgentSysPrompt> implementations, SensitiveWordConfigService sensitiveWordConfigService) {
-        this.sensitiveWordConfigService = sensitiveWordConfigService;
+    public AgentSysPromptFactory(List<AgentSysPrompt> implementations) {
         // 降序
         implementations.sort((o1, o2) -> o2.order() - o1.order());
         // 获取优先级最高的实现
@@ -123,21 +118,7 @@ public class AgentSysPromptFactory {
                 """;
         prompt = prompt + "\n\n" + systemProtectionRule;
 
-        Long id = agentDefinition.getSensitiveWordConfigId();
-        if (id == null) {
-            return prompt;
-        }
-
-        SensitiveWordConfig sensitiveWord = sensitiveWordConfigService.getById(id);
-        if (sensitiveWord == null) {
-            return prompt;
-        }
-
-        List<String> words = new ArrayList<>();
-        sensitiveWord.getWords().forEach(word -> {
-            words.add(word.asText());
-        });
-
-        return SensitiveWordHelper.fillSensitiveWordToPrompt(words, prompt);
+        // 敏感词由运行中间件执行，不向模型注入会覆盖 WARN / REPLACE 行为的拒答提示。
+        return prompt;
     }
 }

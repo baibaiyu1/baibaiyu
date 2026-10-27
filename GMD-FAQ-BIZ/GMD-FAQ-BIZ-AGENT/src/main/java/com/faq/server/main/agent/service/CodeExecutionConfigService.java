@@ -17,4 +17,8 @@ public interface CodeExecutionConfigService extends IService<CodeExecutionConfig
      * @return Agent名称列表
      */
     List<Object> usedWithAgent(List<Long> ids);
+
+    boolean doUpdate(CodeExecutionConfig config);
+
+    boolean deleteConfigs(List<Long> ids);
 }

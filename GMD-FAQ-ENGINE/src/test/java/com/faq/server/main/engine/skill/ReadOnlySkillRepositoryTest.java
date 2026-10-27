@@ -29,7 +29,8 @@ class ReadOnlySkillRepositoryTest {
     private final AgentSkillPackageService bindings = mock(AgentSkillPackageService.class);
     private final SkillToolService toolBindings = mock(SkillToolService.class);
     private final ToolService tools = mock(ToolService.class);
-    private final SkillBoxFactory factory = new SkillBoxFactory(packages, files, bindings, toolBindings, tools);
+    private final SkillBoxFactory factory = new SkillBoxFactory(packages, files, bindings, toolBindings, tools,
+            mock(com.gmd.faq.server.main.resource.visibility.service.ResourceVisibilityService.class));
     private final AgentDefinition definition = new AgentDefinition();
     private final AgentContext owner = new AgentContext();
 
@@ -48,6 +49,13 @@ class ReadOnlySkillRepositoryTest {
         when(toolBindings.getToolIds(30L)).thenReturn(List.of());
     }
     @AfterEach void cleanup() { AgentContext.clean(); }
+    @Test void disabledExecutionCannotRegisterShellOrFileTools() {
+        var config = new CodeExecutionConfig(); config.setEnabled(false);
+        config.setEnableShell(true); config.setEnableRead(true); config.setEnableWrite(true);
+        var toolkit = new Toolkit();
+        factory.getRepository(definition, toolkit, config, AgentExecutionRole.ROOT);
+        assertTrue(toolkit.getToolNames().isEmpty());
+    }
     private RuntimeContext context() {
         return RuntimeContext.builder().userId("user").sessionId("20").put(AgentContext.class, owner).build();
     }

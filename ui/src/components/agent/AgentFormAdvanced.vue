@@ -314,8 +314,8 @@ defineExpose({
         </ACol>
         <ACol :span="12">
           <AFormItem label="更新任务清单需确认">
-            <ASwitch v-model:checked="formData.requirePlanConfirmation" :disabled="!formData.enableMemory" />
-            <div class="text-placeholder text-xs mt-xs">需先开启记忆方可生效</div>
+            <ASwitch v-model:checked="formData.requirePlanConfirmation" />
+            <div class="text-placeholder text-xs mt-xs">更新任务清单前等待确认，关闭记忆仍可审批和续跑</div>
           </AFormItem>
         </ACol>
       </ARow>

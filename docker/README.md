@@ -132,6 +132,31 @@ LightRAG 独立部署，平台通过 Runtime 请求其 `/query/data` 检索接�
 
 升级先更新 Console，完成 `V35__lightrag_knowledge_type.sql`，再更新 Runtime 和前端；源码更新使用 `docker compose -f docker/docker-compose-simple.yml up -d --build`（仓库根目录执行），重建后重启前端以刷新 upstream。配置与检索行为见[知识库手册](../ui/src/doc/content/knowledge/index.md#lightrag-知识库)。
 
+### 博查联网搜索
+
+Runtime 提供内置 `web_search`（博查 Web Search API）和 `web_fetch`（本地网页正文提取）。在 [博查开放平台](https://open.bocha.cn) 获取 API Key 后，把以下变量合并到当前主机已有的 `docker/.env`，不要覆盖整个文件；开发环境也可通过同名进程环境变量配置。
+
+```dotenv
+BOCHA_API_KEY=替换为博查API密钥
+BOCHA_API_URL=https://api.bocha.cn/v1/web-search
+BOCHA_TIMEOUT_SECONDS=20
+BOCHA_MAX_RESULTS=10
+```
+
+`BOCHA_API_URL` 仅接受官方 HTTPS Web Search 地址，兼容旧域名 `https://api.bochaai.com/v1/web-search`；按账户可用地址显式配置，不会自动切换或重复调用。密钥只供 Runtime 请求博查使用，不写入智能体提示词、工具参数或工具结果。不要把真实密钥提交到仓库。
+
+源码更新后，在仓库根目录重建 Runtime 并重启前端以刷新 upstream：
+
+```bash
+docker compose -f docker/docker-compose-simple.yml up -d --no-deps --build gmd-faq-runtime
+docker compose -f docker/docker-compose-simple.yml restart gmd-faq-frontend
+docker compose -f docker/docker-compose-simple.yml logs --tail 100 gmd-faq-runtime
+```
+
+多执行节点应在各 Runtime 主机配置密钥并更新服务；同一主机重建时沿用原有 Compose 编排。启动后工具自动同步到工具管理，随后在智能体的工具区域绑定 `web_search` 和 `web_fetch`，启用并保存，使用 AUTO 策略验证。缺少密钥不影响服务启动，调用搜索会明确返回配置错误。
+
+搜索请求默认超时 20 秒，不自动重试；每次默认返回 5 条，最多返回 `BOCHA_MAX_RESULTS` 条（可设 1～50）。API 响应和网页正文下载均限制为 2 MiB，正文默认返回 12000 字，最多 30000 字；网页读取只支持公开 HTML/纯文本，连接及每次重定向均校验公网地址，不转发登录凭据或博查密钥，不执行 JavaScript。正文提取不另付搜索费用；搜索次数及模型 Token 分别按供应商账单计费。搜索使用方式见[工具手册](../ui/src/doc/content/tool/index.md#联网搜索与网页阅读)。
+
 ## 生产部署（多服务器）
 
 推荐至少使用 3 台服务器，按角色分为：中间件服务器、控制台节点、执行节点。
@@ -354,6 +379,10 @@ http://<执行节点宿主机 IP>:<网关应用端口>/<API 路径>
 | `RUNTIME_JAVA_HEAP_PERCENTAGE` | runtime JVM 堆占容器内存百分比 | `75.0` |
 | `MODEL_CHAT_READ_TIMEOUT_SECONDS` | 聊天模型响应的静默读取超时（秒）；长推理可按需增加 | `600` |
 | `TOOL_EXECUTION_TIMEOUT_SECONDS` | 智能体工具执行超时（秒）；默认高于 Shell 命令的 300 秒超时 | `360` |
+| `BOCHA_API_KEY` | 博查 Web Search API 密钥；留空时搜索工具返回未配置错误 | 空 |
+| `BOCHA_API_URL` | 官方 Web Search HTTPS 地址，兼容 `api.bochaai.com` 旧域名 | `https://api.bocha.cn/v1/web-search` |
+| `BOCHA_TIMEOUT_SECONDS` | 搜索请求超时（秒），范围 1～120 | `20` |
+| `BOCHA_MAX_RESULTS` | 单次搜索返回条数上限，范围 1～50；默认请求 5 条 | `10` |
 | `SHELLPROXY_MEM_LIMIT` | proxy 容器内存限制 | `1g` |
 | `SHELLPROXY_CPU_LIMIT` | proxy 容器 CPU 限制 | `2` |
 | `SHELLPROXY_PIDS_LIMIT` | proxy 容器最大进程数 | `200` |

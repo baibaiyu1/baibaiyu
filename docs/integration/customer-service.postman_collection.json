@@ -1,0 +1,2888 @@
+{
+  "info": {
+    "name": "顶火智能体平台：外部客服接入",
+    "description": "先填写 baseUrl、apiKey、agentId，按 01 文件夹逐个发送。默认 apiKey 为空，未包含真实密钥。run 为 SSE。详见同目录 customer-service-api.md。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{apiKey}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://ai.example.com",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "agentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "agentCode",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "messageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "question",
+      "value": "你好，请介绍一下售后服务。",
+      "type": "string"
+    },
+    {
+      "key": "title",
+      "value": "售后咨询",
+      "type": "string"
+    },
+    {
+      "key": "filePath",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "previewToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "attachmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fileIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "lastEventId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pendingDecisions",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "toolUseId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "toolName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "toolId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "branchMessageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "temporaryThreadId",
+      "value": "thread_demo",
+      "type": "string"
+    },
+    {
+      "key": "keyOwnerAccountId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "chatKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "guestToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 首次联调：按顺序逐个发送",
+      "description": "按需单独发送请求。涉及删除的请求会修改真实数据，请勿对整个集合执行批量运行。",
+      "item": [
+        {
+          "name": "A01 读取客服智能体",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/definition/{{agentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "definition",
+                "{{agentId}}"
+              ]
+            },
+            "description": "路径 agentId 为智能体数据库 ID；从 data.agentCode 取得运行编号。返回配置，仅供接入后端使用。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  pm.collectionVariables.set(\"agentCode\", String(result.data.agentCode));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S01 开启新对话",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session"
+              ]
+            },
+            "description": "JSON：agentId 必填，title、initWorkspace 可选；保存 data.id 作为 sessionId。每点一次新对话执行一次。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"title\": \"{{title}}\",\n  \"initWorkspace\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  pm.collectionVariables.set(\"sessionId\", String(result.data.id));",
+                  "  for (const key of [\"messageId\",\"runId\",\"filePath\",\"previewToken\",\"lastEventId\"]) pm.collectionVariables.set(key, \"\");",
+                  "  pm.collectionVariables.set(\"fileIds\", \"[]\");",
+                  "  pm.collectionVariables.set(\"pendingDecisions\", \"[]\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S02 保存本次问题",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/message",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "message"
+              ]
+            },
+            "description": "JSON：role=\"user\"、content=问题。保存 data.id 作为本次 messageId；本接口只保存，不生成回答。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"user\",\n  \"content\": \"{{question}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  pm.collectionVariables.set(\"messageId\", String(result.data.id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R01 运行客服并接收流式回答",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              },
+              {
+                "key": "X-GMD-FAQ-Thread-Id",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/agui/run/{{agentCode}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "agui",
+                "run",
+                "{{agentCode}}"
+              ]
+            },
+            "description": "路径使用 agentCode；JSON：threadId=sessionId、runId=每轮新 UUID、messages=本轮问题；详见调用示例。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"threadId\": \"{{sessionId}}\",\n  \"runId\": \"{{runId}}\",\n  \"messages\": [\n    {\n      \"id\": \"{{messageId}}\",\n      \"role\": \"user\",\n      \"content\": \"{{question}}\"\n    }\n  ],\n  \"state\": {},\n  \"tools\": [],\n  \"context\": [],\n  \"forwardedProps\": {\n    \"fileIds\": []\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "pm.collectionVariables.set(\"runId\", pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "body.forwardedProps.fileIds = JSON.parse(pm.variables.get(\"fileIds\") || \"[]\");",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for (const block of pm.response.text().replace(/\\r\\n/g,\"\\n\").split(\"\\n\\n\")) {",
+                  "  const lines = block.split(\"\\n\");",
+                  "  const id = lines.find(line => line.startsWith(\"id:\"));",
+                  "  if (id) pm.collectionVariables.set(\"lastEventId\", id.slice(3).trim());",
+                  "  const data = lines.filter(line => line.startsWith(\"data:\")).map(line => line.slice(5).trimStart()).join(\"\\n\");",
+                  "  if (!data) continue;",
+                  "  try {",
+                  "    const event = JSON.parse(data);",
+                  "    if (event.type === \"CUSTOM\" && event.name === \"TOOL_RESULT_CONTENT\") {",
+                  "      const file = [...(event.value?.images || []), ...(event.value?.artifacts || [])].find(item => item.filePath && !item.error);",
+                  "      if (file) pm.collectionVariables.set(\"filePath\", file.filePath);",
+                  "    }",
+                  "  } catch (_) {}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S03 读取当前对话历史",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/messages/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "messages",
+                "current"
+              ]
+            },
+            "description": "返回 data 数组，包含当前分支的用户、助手和工具消息；工具 content 是含 images/artifacts/citations 的 JSON 字符串。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S04 读取生成文件列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/artifacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "artifacts"
+              ]
+            },
+            "description": "返回 data 数组：filePath、fileName、extension、sizeBytes、sourceTool、createTime 等；filePath 用于下载。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  if (result.data.length) pm.collectionVariables.set(\"filePath\", result.data[0].filePath);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 会话查询与消息分支",
+      "description": "按需单独发送请求。涉及删除的请求会修改真实数据，请勿对整个集合执行批量运行。",
+      "item": [
+        {
+          "name": "S05 列出当前凭证的会话",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/list?agentId={{agentId}}&scope=mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "list"
+              ],
+              "query": [
+                {
+                  "key": "agentId",
+                  "value": "{{agentId}}"
+                },
+                {
+                  "key": "scope",
+                  "value": "mine"
+                }
+              ]
+            },
+            "description": "可选 query：agentId、isPinned；scope 固定 mine。不支持用 userId 切换为公司客户。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S06 分页列出会话",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/page?page=1&size=20&agentId={{agentId}}&scope=mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "page"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "agentId",
+                  "value": "{{agentId}}"
+                },
+                {
+                  "key": "scope",
+                  "value": "mine"
+                }
+              ]
+            },
+            "description": "query：page 从 1 开始、size（默认 20），可选 agentId、isPinned；data.records 为列表，data.total 为总数。参数名为 page。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S07 读取会话详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "返回 data：id、agentId、title、currentMessageId、canRead、canWrite 等；归档会话可读，但不能继续发送。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S08 向上翻页读取消息",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/messages/paged?size=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "messages",
+                "paged"
+              ],
+              "query": [
+                {
+                  "key": "size",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "query：size 默认 50，beforeDepth 可选。首次不传 beforeDepth；下一页传上次 data.nextBeforeDepth；data.hasMore 判断是否继续。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S09 查询消息的不同版本",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/message-branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "message-branches"
+              ]
+            },
+            "description": "返回 data 数组：messageId、parentId、siblingIds、currentIndex、total；只有存在多个兄弟分支时才有条目。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S10 切换消息游标",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/current?messageId={{branchMessageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "current"
+              ],
+              "query": [
+                {
+                  "key": "messageId",
+                  "value": "{{branchMessageId}}"
+                }
+              ]
+            },
+            "description": "query：messageId=属于本会话的数据库消息 ID；无 JSON body。仅更新聊天游标，不自动运行模型或重建推理状态。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S11 保存用于重新生成的消息",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/regenerate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "regenerate"
+              ]
+            },
+            "description": "JSON：role、content。当前实现是在当前消息下追加并移动游标，返回新消息；不会自行生成回答，不能当作一键重答接口。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"user\",\n  \"content\": \"{{question}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  pm.collectionVariables.set(\"messageId\", String(result.data.id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S12 置顶会话",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/pin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "pin"
+              ]
+            },
+            "description": "无 body；成功返回 R，code=200。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S13 取消置顶",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/unpin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "unpin"
+              ]
+            },
+            "description": "无 body；成功返回 R，code=200。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S14 修改会话标题",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/title?title={{title}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "title"
+              ],
+              "query": [
+                {
+                  "key": "title",
+                  "value": "{{title}}"
+                }
+              ]
+            },
+            "description": "query：title=新标题；无 JSON body。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 运行、断线恢复与审批",
+      "description": "按需单独发送请求。涉及删除的请求会修改真实数据，请勿对整个集合执行批量运行。",
+      "item": [
+        {
+          "name": "R02 通过请求头选择智能体运行",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              },
+              {
+                "key": "X-GMD-FAQ-Thread-Id",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "X-Agent-Id",
+                "value": "{{agentCode}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/agui/run",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "agui",
+                "run"
+              ]
+            },
+            "description": "与 R01 使用同一 body，另带 X-Agent-Id: agentCode；也兼容 forwardedProps.agentId=agentCode。推荐首次接入使用 R01。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"threadId\": \"{{sessionId}}\",\n  \"runId\": \"{{runId}}\",\n  \"messages\": [\n    {\n      \"id\": \"{{messageId}}\",\n      \"role\": \"user\",\n      \"content\": \"{{question}}\"\n    }\n  ],\n  \"state\": {},\n  \"tools\": [],\n  \"context\": [],\n  \"forwardedProps\": {\n    \"fileIds\": []\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "pm.collectionVariables.set(\"runId\", pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "body.forwardedProps.fileIds = JSON.parse(pm.variables.get(\"fileIds\") || \"[]\");",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for (const block of pm.response.text().replace(/\\r\\n/g,\"\\n\").split(\"\\n\\n\")) {",
+                  "  const lines = block.split(\"\\n\");",
+                  "  const id = lines.find(line => line.startsWith(\"id:\"));",
+                  "  if (id) pm.collectionVariables.set(\"lastEventId\", id.slice(3).trim());",
+                  "  const data = lines.filter(line => line.startsWith(\"data:\")).map(line => line.slice(5).trimStart()).join(\"\\n\");",
+                  "  if (!data) continue;",
+                  "  try {",
+                  "    const event = JSON.parse(data);",
+                  "    if (event.type === \"CUSTOM\" && event.name === \"TOOL_RESULT_CONTENT\") {",
+                  "      const file = [...(event.value?.images || []), ...(event.value?.artifacts || [])].find(item => item.filePath && !item.error);",
+                  "      if (file) pm.collectionVariables.set(\"filePath\", file.filePath);",
+                  "    }",
+                  "  } catch (_) {}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R03 查询是否仍在回答",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-GMD-FAQ-Thread-Id",
+                "value": "{{sessionId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/agui/status/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "agui",
+                "status",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "直接返回 {running,state}，无 R 包装；state 为 RUNNING / STOPPING / COMPLETED。暂停审批另查 pending，不能只看 running。"
+          },
+          "response": []
+        },
+        {
+          "name": "R04 断线后接回回答流",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              },
+              {
+                "key": "X-GMD-FAQ-Thread-Id",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "Last-Event-ID",
+                "value": "{{lastEventId}}",
+                "disabled": true,
+                "description": "已有 SSE id 时启用；不能填写消息 ID 或 runId。"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/agui/reconnect/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "agui",
+                "reconnect",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "请求头 Last-Event-ID 可选，值来自最后收到的 SSE id；不是 runId 或 messageId。回放不可用时补查 S03/S04。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for (const block of pm.response.text().replace(/\\r\\n/g,\"\\n\").split(\"\\n\\n\")) {",
+                  "  const lines = block.split(\"\\n\");",
+                  "  const id = lines.find(line => line.startsWith(\"id:\"));",
+                  "  if (id) pm.collectionVariables.set(\"lastEventId\", id.slice(3).trim());",
+                  "  const data = lines.filter(line => line.startsWith(\"data:\")).map(line => line.slice(5).trimStart()).join(\"\\n\");",
+                  "  if (!data) continue;",
+                  "  try {",
+                  "    const event = JSON.parse(data);",
+                  "    if (event.type === \"CUSTOM\" && event.name === \"TOOL_RESULT_CONTENT\") {",
+                  "      const file = [...(event.value?.images || []), ...(event.value?.artifacts || [])].find(item => item.filePath && !item.error);",
+                  "      if (file) pm.collectionVariables.set(\"filePath\", file.filePath);",
+                  "    }",
+                  "  } catch (_) {}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R05 停止当前回答",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-GMD-FAQ-Thread-Id",
+                "value": "{{sessionId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/agui/stop/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "agui",
+                "stop",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "无 body；直接返回 {accepted,stopped,state}。STOPPING 表示正在停止，等待 status 不再运行后再清理。"
+          },
+          "response": []
+        },
+        {
+          "name": "R06 查询等待确认的工具",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-GMD-FAQ-Thread-Id",
+                "value": "{{sessionId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/agui/pending/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "agui",
+                "pending",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "直接返回 {pending:[{toolUseId,name,input}]}；用于恢复确认界面，不让客户端修改 input。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "const decisions = (result.pending || []).map(item => ({toolUseId:item.toolUseId,name:item.name,approved:false}));",
+                  "pm.collectionVariables.set(\"pendingDecisions\", JSON.stringify(decisions));",
+                  "// 默认拒绝，仅在真实用户作出决定后把对应 approved 改为 true。"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R07 提交确认决定并继续回答",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              },
+              {
+                "key": "X-GMD-FAQ-Thread-Id",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/agui/resume/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "agui",
+                "resume",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "JSON：decisions=[{toolUseId,name,approved}]，ID 与名称取自 pending；拒绝填 false。续跑返回 SSE，沿用服务端暂停状态。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisions\": [\n    {\n      \"toolUseId\": \"{{toolUseId}}\",\n      \"name\": \"{{toolName}}\",\n      \"approved\": true\n    }\n  ],\n  \"memoryActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "const decisions = JSON.parse(pm.variables.get(\"pendingDecisions\") || \"[]\");",
+                  "if (!decisions.length) throw new Error(\"先发送 R06 并逐项确认 pendingDecisions 中的 approved 决定\");",
+                  "body.decisions = decisions;",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for (const block of pm.response.text().replace(/\\r\\n/g,\"\\n\").split(\"\\n\\n\")) {",
+                  "  const lines = block.split(\"\\n\");",
+                  "  const id = lines.find(line => line.startsWith(\"id:\"));",
+                  "  if (id) pm.collectionVariables.set(\"lastEventId\", id.slice(3).trim());",
+                  "  const data = lines.filter(line => line.startsWith(\"data:\")).map(line => line.slice(5).trimStart()).join(\"\\n\");",
+                  "  if (!data) continue;",
+                  "  try {",
+                  "    const event = JSON.parse(data);",
+                  "    if (event.type === \"CUSTOM\" && event.name === \"TOOL_RESULT_CONTENT\") {",
+                  "      const file = [...(event.value?.images || []), ...(event.value?.artifacts || [])].find(item => item.filePath && !item.error);",
+                  "      if (file) pm.collectionVariables.set(\"filePath\", file.filePath);",
+                  "    }",
+                  "  } catch (_) {}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R08 列出当前凭证可读的活动会话",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-GMD-FAQ-Thread-Id",
+                "value": "{{sessionId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/agui/active-runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "agui",
+                "active-runs"
+              ]
+            },
+            "description": "直接返回会话 ID 数组；不是完整历史列表，也不能用于发现其他 Runtime 节点的全部活动任务。"
+          },
+          "response": []
+        },
+        {
+          "name": "R09 读取临时调试会话图片",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "*/*"
+              },
+              {
+                "key": "X-GMD-FAQ-Thread-Id",
+                "value": "{{temporaryThreadId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/agui/tool-images/{{temporaryThreadId}}?fileName={{filePath}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "agui",
+                "tool-images",
+                "{{temporaryThreadId}}"
+              ],
+              "query": [
+                {
+                  "key": "fileName",
+                  "value": "{{filePath}}"
+                }
+              ]
+            },
+            "description": "query：fileName 必须是已返回的 .tool-results/… 图片路径；只支持非纯数字的已登记临时 threadId。正式客服用 W05。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 工作区、文件和图片",
+      "description": "按需单独发送请求。涉及删除的请求会修改真实数据，请勿对整个集合执行批量运行。",
+      "item": [
+        {
+          "name": "W01 查看会话工作区文件树",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/files?sessionId={{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "files"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}"
+                }
+              ]
+            },
+            "description": "query：sessionId；返回 data 树，节点含 name、path、directory、extension、readableSize、lastModified、children。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W02 上传单个工作区文件",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "upload"
+              ]
+            },
+            "description": "multipart：sessionId 文本、file 文件；返回 data 为相对路径。文件在指定会话中，后续提问可让智能体读取该路径。",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "sessionId",
+                  "type": "text",
+                  "value": "{{sessionId}}"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  pm.collectionVariables.set(\"filePath\", String(result.data));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W03 上传多个工作区文件",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/upload/batch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "upload",
+                "batch"
+              ]
+            },
+            "description": "multipart：sessionId，重复的 files 文件字段；返回 data 为路径数组。",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "sessionId",
+                  "type": "text",
+                  "value": "{{sessionId}}"
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W04 上传 ZIP 并解压",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/upload/archive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "upload",
+                "archive"
+              ]
+            },
+            "description": "multipart：sessionId、file 压缩包；返回 data 为解压后的路径数组。需满足上传及工作区容量限制。",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "sessionId",
+                  "type": "text",
+                  "value": "{{sessionId}}"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W05 下载一个文件或对话图片",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "*/*"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/download?sessionId={{sessionId}}&fileName={{filePath}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "download"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}"
+                },
+                {
+                  "key": "fileName",
+                  "value": "{{filePath}}"
+                }
+              ]
+            },
+            "description": "query：sessionId、fileName=完整相对路径（可包含子目录）；返回二进制，Content-Type 为 application/octet-stream。"
+          },
+          "response": []
+        },
+        {
+          "name": "W06 打包下载指定文件",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "*/*"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/download/batch?sessionId={{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "download",
+                "batch"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}"
+                }
+              ]
+            },
+            "description": "query：sessionId；JSON body 为相对路径数组，如 [\"说明.md\",\"images/示意图.png\"]；返回 ZIP。",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  \"{{filePath}}\"\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W07 打包下载整个工作区",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "*/*"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/download/all?sessionId={{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "download",
+                "all"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}"
+                }
+              ]
+            },
+            "description": "query：sessionId；返回 workspace-{sessionId}.zip。"
+          },
+          "response": []
+        },
+        {
+          "name": "W08 取得浏览器预览令牌",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/preview-token?sessionId={{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "preview-token"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}"
+                }
+              ]
+            },
+            "description": "query：sessionId；返回 data=令牌，5 分钟有效且绑定整个会话。用 P01 打开图片或支持的预览文件。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  pm.collectionVariables.set(\"previewToken\", String(result.data));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W09 查询工作区容量",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/capacity?sessionId={{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "capacity"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}"
+                }
+              ]
+            },
+            "description": "query：sessionId；data 含 usedBytes、maxBytes、usedReadable、maxReadable、percent；容量以服务器配置为准。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W10 查询工作区目录是否存在",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/exists?sessionId={{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "exists"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}"
+                }
+              ]
+            },
+            "description": "query：sessionId；data 为 boolean。目录不存在不等于会话不存在；initWorkspace=true 可在创建时建目录。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 用户上传的多模态附件",
+      "description": "按需单独发送请求。涉及删除的请求会修改真实数据，请勿对整个集合执行批量运行。",
+      "item": [
+        {
+          "name": "F01 上传图片等消息附件",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attach/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attach",
+                "upload"
+              ]
+            },
+            "description": "multipart：file；返回 data=附件 ID。把此 ID 放入 R01 的 forwardedProps.fileIds，才会随本轮问题交给模型。",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  pm.collectionVariables.set(\"attachmentId\", String(result.data));",
+                  "  pm.collectionVariables.set(\"fileIds\", JSON.stringify([String(result.data)]));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "F02 下载之前上传的附件",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "*/*"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attach/download/{{attachmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attach",
+                "download",
+                "{{attachmentId}}"
+              ]
+            },
+            "description": "路径为 F01 返回的附件 ID；只允许下载当前调用身份上传的附件；返回二进制。"
+          },
+          "response": []
+        },
+        {
+          "name": "A02 查询该智能体允许的附件类型",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/definition/{{agentId}}/allow/file-type",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "definition",
+                "{{agentId}}",
+                "allow",
+                "file-type"
+              ]
+            },
+            "description": "返回 data 字符串数组；实际图片、音频、视频理解能力还取决于所选模型和配置。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 其他可用的 SkKey 接口",
+      "description": "按需单独发送请求。涉及删除的请求会修改真实数据，请勿对整个集合执行批量运行。",
+      "item": [
+        {
+          "name": "A03 查询智能体绑定的工具",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/definition/{{agentId}}/enabled/tools",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "definition",
+                "{{agentId}}",
+                "enabled",
+                "tools"
+              ]
+            },
+            "description": "返回 data 工具配置数组；要求有智能体使用权；仅供接入后端使用，不是普通客户的配置管理入口。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A04 查询智能体绑定的技能",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/definition/{{agentId}}/enabled/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "definition",
+                "{{agentId}}",
+                "enabled",
+                "skills"
+              ]
+            },
+            "description": "返回 data 技能包数组；要求有智能体使用权。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A05 查询智能体绑定的工作流",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/definition/{{agentId}}/enabled/workflows",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "definition",
+                "{{agentId}}",
+                "enabled",
+                "workflows"
+              ]
+            },
+            "description": "返回 data 工作流数组；要求有智能体使用权。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "T01 直接调用已配置工具",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/tool/{{toolId}}/do",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "tool",
+                "{{toolId}}",
+                "do"
+              ]
+            },
+            "description": "路径 toolId 是工具标识（代码形参名 toolName），JSON 为工具所需参数对象；检查启用状态和使用权。独立于客服会话。",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "U01 查询 SkKey 创建者账号详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/account/{{keyOwnerAccountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "account",
+                "{{keyOwnerAccountId}}"
+              ]
+            },
+            "description": "路径必须是创建密钥的真实账号 ID；不能用来查任意公司客户，也不是 SkKey 的随机会话身份 ID。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M01 通过 MCP 协议查询或调用平台工具",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/mcp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "mcp"
+              ]
+            },
+            "description": "JSON-RPC：支持 initialize、ping、tools/list、tools/call 等；仅发布启用、PLATFORM + TENANT 且不需人工确认的工具。详见 MCP 示例。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2024-11-05\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"company-platform\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M02 关闭 MCP 会话",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/mcp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "mcp"
+              ]
+            },
+            "description": "当前 MCP 无会话状态，返回 HTTP 204、无响应体；不删除客服会话。"
+          },
+          "response": []
+        },
+        {
+          "name": "M03 检查 MCP GET 推送能力",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/mcp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "mcp"
+              ]
+            },
+            "description": "当前明确返回 HTTP 405：不提供长期 GET SSE 推送。正常 MCP 调用使用 POST；不属于聊天恢复接口。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"当前实现不支持 MCP GET 推送\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 修改与清理：按需手工调用",
+      "description": "按需单独发送请求。涉及删除的请求会修改真实数据，请勿对整个集合执行批量运行。",
+      "item": [
+        {
+          "name": "S15 修改当前消息文本",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/current-message/content",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "current-message",
+                "content"
+              ]
+            },
+            "description": "JSON：content；修改会话游标指向的消息，不自动生成回答，也不重建模型持久状态。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"{{question}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W11 创建或覆盖文本文件",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/file",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "file"
+              ]
+            },
+            "description": "JSON：sessionId、filePath、content；expectedContent 可选，为打开时的原文，用于冲突检测，省略则不比较。",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"filePath\": \"{{filePath}}\",\n  \"content\": \"这里是新文件内容\",\n  \"expectedContent\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolve = value => {",
+                  "  if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "  if (Array.isArray(value)) return value.map(resolve);",
+                  "  if (value && typeof value === \"object\") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k,resolve(v)]));",
+                  "  return value;",
+                  "};",
+                  "const body = resolve(JSON.parse(pm.request.body.raw));",
+                  "pm.request.body.update(JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W12 删除单个工作区文件",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/file?sessionId={{sessionId}}&filePath={{filePath}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "file"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}"
+                },
+                {
+                  "key": "filePath",
+                  "value": "{{filePath}}"
+                }
+              ]
+            },
+            "description": "query：sessionId、filePath=相对路径；图片或文档删除后原引用将无法读取。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "W13 清空工作区文件",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/clear?sessionId={{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "clear"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}"
+                }
+              ]
+            },
+            "description": "query：sessionId；删除工作区文件，不等同于开启新对话。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S16 清空本会话消息和推理状态",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}",
+                "messages"
+              ]
+            },
+            "description": "保留会话 ID 并重新创建根消息，工作区文件另由 W13 清理。返回 data.deleted；运行中先 R05 停止。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S17 删除一个会话",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "删除会话、消息、状态和工作区；运行中先 R05 停止，再确认停止完成。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S18 删除当前调用身份在该智能体下的全部会话",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agent/chat/session/agent/{{agentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agent",
+                "chat",
+                "session",
+                "agent",
+                "{{agentId}}"
+              ]
+            },
+            "description": "影响同一 SkKey 下该智能体的所有客户会话，不能作为单个公司客户的清空按钮。返回 data.deleted。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  // 此接口无需保存变量。",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 可选：短时预览与游客分享",
+      "description": "按需单独发送请求。涉及删除的请求会修改真实数据，请勿对整个集合执行批量运行。",
+      "item": [
+        {
+          "name": "P01 浏览器直接预览工作区文件",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "*/*"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/runtime/workspace/raw/{{previewToken}}/{{sessionId}}/{{filePath}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "runtime",
+                "workspace",
+                "raw",
+                "{{previewToken}}",
+                "{{sessionId}}",
+                "{{filePath}}"
+              ]
+            },
+            "description": "使用 W08 的令牌；无需 Authorization。path 是相对路径，逐段 URL 编码。支持图片、HTML、文本等内联，其他格式下载。",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const filePath = String(pm.variables.get(\"filePath\") || \"\").replace(/^\\/+/, \"\");",
+                  "const encoded = filePath.split(\"/\").map(encodeURIComponent).join(\"/\");",
+                  "pm.request.url.update(pm.variables.get(\"baseUrl\").replace(/\\/$/, \"\") + \"/api/runtime/workspace/raw/\" + encodeURIComponent(pm.variables.get(\"previewToken\")) + \"/\" + encodeURIComponent(pm.variables.get(\"sessionId\")) + \"/\" + encoded);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "G01 分享链接换取游客访问令牌",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/chat-key-token/{{chatKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "chat-key-token",
+                "{{chatKey}}"
+              ]
+            },
+            "description": "无需原登录；管理员必须已启用、发布智能体并开启游客访问。返回 data.accessToken；每次交换产生新游客身份，历史需沿用原 token。",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const result = pm.response.json();",
+                  "pm.test(\"业务调用成功\", () => pm.expect(result.code).to.eql(200));",
+                  "if (result.code === 200 && result.data != null) {",
+                  "  pm.collectionVariables.set(\"guestToken\", String(result.data.accessToken));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * Mem0 长期记忆构建器
  * <p>
  * 构建 Mem0LongTermMemory 实例。
- * 用户标识从 AgentContext 中自动获取（优先使用 nickname，其次 username，最后 id）。
+ * 用户标识使用服务端上下文中的租户 ID 与账号 ID。
  * apiType 从配置中读取，由用户自行选择部署类型（Platform / Self-hosted）。
  *
  */

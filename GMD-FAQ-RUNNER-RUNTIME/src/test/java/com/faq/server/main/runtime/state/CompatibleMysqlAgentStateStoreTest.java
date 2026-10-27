@@ -2,6 +2,11 @@ package com.gmd.faq.server.main.runtime.state;
 
 import com.gmd.faq.server.main.common.consts.TableConst;
 import com.gmd.faq.server.main.common.util.AgentStateScope;
+import com.gmd.faq.server.main.common.entity.Attach;
+import com.gmd.faq.server.main.common.vo.AccountVO;
+import com.gmd.faq.server.main.engine.agui.AgentContext;
+import com.gmd.faq.server.main.engine.tool.DocumentTextAccess;
+import com.gmd.faq.server.main.resource.service.AttachService;
 import io.agentscope.core.message.*;
 import io.agentscope.core.state.*;
 import io.agentscope.core.util.JsonUtils;
@@ -12,7 +17,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.test.util.ReflectionTestUtils;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /** 在独立临时库验证真实 MySQL 兼容读取和乐观锁；普通构建未配置数据库时跳过。 */
 @EnabledIfEnvironmentVariable(named = "AGENTSCOPE_TEST_MYSQL_URL", matches = ".*/gmd_agentscope_upgrade_check.*")
@@ -76,6 +83,34 @@ class CompatibleMysqlAgentStateStoreTest {
         assertFalse(store.exists(USER, SESSION));
         assertFalse(store.exists(USER, SESSION + ":subagent:test:child"));
         assertTrue(store.exists(other, SESSION));
+    }
+
+    @Test void attachmentGrantsReloadIndependentlyOfLegacyHistoryAndRequireTheSameOwner() {
+        var attachments = mock(AttachService.class);
+        var file = new Attach(); file.setId(77L); file.setTenantId(71L); file.setCreateBy(72L);
+        when(attachments.getById(77L)).thenReturn(file);
+        var user = new AccountVO(); user.setId(72L);
+        var owner = new AgentContext(); owner.setTenantId(71L); owner.setUserInfo(user); owner.setThreadId(SESSION);
+        owner.setFileIds(List.of("77"));
+        var access = new DocumentTextAccess(attachments);
+        ReflectionTestUtils.setField(access, "stateStore", store);
+        seed("memory_messages", 0, JsonUtils.getJsonCodec().toJson(Msg.builder().role(MsgRole.USER).textContent("旧消息").build()));
+        access.authorizeForSession(owner);
+
+        var reloaded = new DocumentTextAccess(attachments);
+        ReflectionTestUtils.setField(reloaded, "stateStore", store);
+        owner.setFileIds(List.of());
+        assertDoesNotThrow(() -> reloaded.requireForSession(77L, owner));
+        assertTrue(store.getVersioned(USER, SESSION, "agent_state", AgentState.class).isPresent(),
+                "附件授权不能遮蔽尚未迁移的旧会话");
+        owner.setThreadId(SESSION + "other");
+        assertThrows(IllegalStateException.class, () -> reloaded.requireForSession(77L, owner));
+        owner.setThreadId(SESSION);
+        file.setCreateBy(73L);
+        assertThrows(IllegalStateException.class, () -> reloaded.requireForSession(77L, owner));
+        file.setCreateBy(72L);
+        store.delete(USER, SESSION + ":attachments");
+        assertThrows(IllegalStateException.class, () -> reloaded.requireForSession(77L, owner));
     }
 
     private static AgentState state(String user, String session) {

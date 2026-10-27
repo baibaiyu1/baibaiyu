@@ -123,9 +123,20 @@ public class SkillPackageServiceImpl extends ServiceImpl<SkillPackageMapper, Ski
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateTools(Long id, List<Long> toolIds) {
         requireManageable(id);
-        return skillToolService.saveSkillTool(id, toolIds);
+        if (toolIds != null) {
+            toolIds.stream().distinct().forEach(toolId -> resourceVisibilityService.assertUsable("TOOL", toolId));
+        }
+        boolean updated = skillToolService.saveSkillTool(id, toolIds);
+        if (updated) refreshBoundAgents(id);
+        return updated;
+    }
+
+    @Override
+    public void refreshBoundAgents(Long id) {
+        publishAgentReregister(agentSkillPackageService.getAgentIds(List.of(id)));
     }
 
     @Override

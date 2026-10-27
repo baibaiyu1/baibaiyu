@@ -94,12 +94,13 @@ public class SkillPackageController {
      */
     @PostMapping
     @PermNeed({"skill:package:add"})
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public R<Long> save(@RequestBody SkillPackageVO vo) {
         SkillPackage entity = BeanUtils.copy(vo, SkillPackage.class);
         skillPackageService.save(entity);
         // 保存技能与工具的关联
         if (vo.getTools() != null && !vo.getTools().isEmpty()) {
-            skillToolService.saveSkillTool(entity.getId(), vo.getTools());
+            skillPackageService.updateTools(entity.getId(), vo.getTools());
         }
         // 创建技能包目录并写入默认 SKILL.md（带 YAML 头）
         SkillFileSystemService.buildSkillDir(entity.getName());
@@ -122,11 +123,12 @@ public class SkillPackageController {
      */
     @PutMapping
     @PermNeed({"skill:package:edit"})
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public R<Boolean> update(@RequestBody SkillPackageVO vo) {
         SkillPackage entity = BeanUtils.copy(vo, SkillPackage.class);
         boolean b = skillPackageService.doUpdate(entity);
         // 更新技能与工具的关联
-        skillToolService.saveSkillTool(entity.getId(), vo.getTools());
+        skillPackageService.updateTools(entity.getId(), vo.getTools());
         return R.data(b);
     }
 

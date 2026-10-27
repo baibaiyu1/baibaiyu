@@ -50,7 +50,7 @@ public class CodeExecutionConfigController {
     @PutMapping
     @PermNeed({"agent:code:edit"})
     public R<Boolean> update(@RequestBody CodeExecutionConfig entity) {
-        return R.data(codeExecutionConfigService.updateById(entity));
+        return R.data(codeExecutionConfigService.doUpdate(entity));
     }
 
     /**
@@ -59,7 +59,7 @@ public class CodeExecutionConfigController {
     @DeleteMapping
     @PermNeed({"agent:code:edit"})
     public R<Boolean> delete(@RequestBody List<Long> ids) {
-        return R.data(codeExecutionConfigService.removeByIds(ids));
+        return R.data(codeExecutionConfigService.deleteConfigs(ids));
     }
 
     /**

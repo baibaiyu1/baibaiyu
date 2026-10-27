@@ -7,6 +7,15 @@ import com.gmd.faq.server.main.common.util.UserUtils;
 import com.gmd.faq.server.main.engine.agui.*;
 import com.gmd.faq.server.main.engine.agent.AgentSessionPolicy;
 import com.gmd.faq.server.main.engine.tool.ProjectToolkit;
+import com.gmd.faq.server.main.engine.tool.IAgentTool;
+import com.gmd.faq.server.main.engine.tool.ToolkitFactory;
+import com.gmd.faq.server.main.engine.tool.ToolsRegister;
+import com.gmd.faq.server.main.engine.tool.WebPageReader;
+import com.gmd.faq.server.main.engine.tool.builtins.BochaWebSearchTool;
+import com.gmd.faq.server.main.engine.tool.builtins.WebPageFetchTool;
+import com.gmd.faq.server.main.engine.tool.web.BochaSearchProperties;
+import com.gmd.faq.server.main.common.entity.ToolConfig;
+import com.gmd.faq.server.main.common.enums.ToolType;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.*;
@@ -134,6 +143,72 @@ class AgentPlanModeTest {
             assertEquals(1,effects.get()); assertFalse(agent.getAgentState(resume).getPlanModeContext().isPlanActive());
         }
     }
+    @Test void boundWebToolsRunDuringPlanningWhileSameNamedCustomToolsStayUntrusted() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var reader = mock(WebPageReader.class);
+        when(reader.read("https://www.mem.gov.cn/news", null)).thenReturn(
+                new WebPageReader.Page("https://www.mem.gov.cn/news", "应急通报", null, "官方应急通报正文", false, "2026-10-27T00:00:00Z"));
+        var search = new BochaWebSearchTool(new BochaSearchProperties(), mapper);
+        var fetch = new WebPageFetchTool(reader, mapper);
+        try {
+            ProjectToolkit toolkit = new ProjectToolkit(ToolkitConfig.builder().build());
+            ToolConfig searchConfig = builtin(search, "web_search");
+            searchConfig.setNeedConfirm(true);
+            ToolkitFactory.registerTools(toolkit, List.of(searchConfig, builtin(fetch, "web_fetch")));
+            assertTrue(toolkit.isTrustedRead(toolkit.getTool("web_search")));
+            assertTrue(toolkit.isTrustedRead(toolkit.getTool("web_fetch")));
+            assertEquals(1, com.gmd.faq.server.main.engine.hook.builtins.IConfirmationHook.rulesFor(toolkit).size(),
+                    "只读资格不能绕过工具原有的确认要求");
+            AtomicInteger modelCalls = new AtomicInteger();
+            Model model = new Model() {
+                public String getModelName() { return "web-plan-test"; }
+                public Flux<ChatResponse> stream(List<Msg> messages, List<ToolSchema> tools, GenerateOptions options) {
+                    if (modelCalls.getAndIncrement() == 0) {
+                        assertTrue(tools.stream().anyMatch(tool -> tool.getName().equals("web_search")));
+                        assertTrue(tools.stream().anyMatch(tool -> tool.getName().equals("web_fetch")));
+                        return response(call("read-source", "web_fetch", Map.of("url", "https://www.mem.gov.cn/news")));
+                    }
+                    assertTrue(messages.stream().flatMap(message -> message.getContentBlocks(ToolResultBlock.class).stream())
+                            .flatMap(result -> result.getOutput().stream()).filter(TextBlock.class::isInstance)
+                            .map(TextBlock.class::cast).anyMatch(text -> text.getText().contains("官方应急通报正文")));
+                    return response(TextBlock.builder().text("已核对官方来源，继续编写方案").build());
+                }
+            };
+            var policy = PermissionContextState.builder().addAllowRule("web_fetch",
+                    new PermissionRule("web_fetch", null, PermissionBehavior.ALLOW, "test")).build();
+            try (var agent = ReActAgent.builder().name("web-planner").model(model).stateStore(store).toolkit(toolkit).maxIters(3)
+                    .permissionContext(policy).middleware(new AgentSessionPolicy(false, policy))
+                    .middleware(new AgentPlanModeMiddleware(plans, plans.manager(), toolkit)).build()) {
+                var events = stream(agent, List.of(Msg.builder().role(MsgRole.USER).textContent("先查询官方资料再出方案").build()));
+                assertTrue(events.stream().anyMatch(event -> event instanceof ToolResultEndEvent end
+                        && end.getState() == ToolResultState.SUCCESS), () -> "事件：" + events
+                        + "；工具结果：" + agent.getAgentState(context).getContext().stream()
+                        .flatMap(message -> message.getContentBlocks(ToolResultBlock.class).stream())
+                        .map(result -> result.getName() + ":" + result.getState() + ":" + result.getOutput().stream()
+                                .filter(TextBlock.class::isInstance).map(TextBlock.class::cast).map(TextBlock::getText).toList()).toList());
+                assertTrue(plans.readOnly(owner), "读取外部资料不应批准或退出方案阶段");
+                verify(reader).read("https://www.mem.gov.cn/news", null);
+            }
+            ProjectToolkit custom = new ProjectToolkit(ToolkitConfig.builder().build());
+            var fake = new ToolConfig(); fake.setToolId("web_search"); fake.setDescription("同名自定义工具");
+            fake.setEnabled(true); fake.setToolType(ToolType.CUSTOM); fake.setInputSchema(mapper.createArrayNode());
+            ToolkitFactory.registerTools(custom, List.of(fake));
+            assertFalse(custom.isTrustedRead(custom.getTool("web_search")));
+            toolkit.registerAgentTool(effect("web_fetch", new AtomicInteger()));
+            assertFalse(toolkit.isTrustedRead(toolkit.getTool("web_fetch")), "替换后的同名实例不能继承只读资格");
+        } finally {
+            ToolsRegister.unregisterTool(BochaWebSearchTool.class.getName());
+            ToolsRegister.unregisterTool(WebPageFetchTool.class.getName());
+        }
+    }
+
+    private static ToolConfig builtin(IAgentTool tool, String name) {
+        tool.afterSingletonsInstantiated();
+        var config = new ToolConfig(); config.setToolId(name); config.setClassPath(tool.getClass().getName());
+        config.setEnabled(true); config.setToolType(ToolType.BUILTIN);
+        return config;
+    }
+
     private List<AgentEvent> stream(ReActAgent agent,List<Msg> messages) {
         return agent.streamEvents(messages,context).contextWrite(c -> AgentContextPropagation.withContext(c,owner))
                 .collectList().block(Duration.ofSeconds(20));

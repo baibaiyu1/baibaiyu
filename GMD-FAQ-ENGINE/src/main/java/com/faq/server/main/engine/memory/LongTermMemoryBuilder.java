@@ -28,23 +28,15 @@ public interface LongTermMemoryBuilder {
 
     /**
      * 从 AgentContext 中解析用户标识
-     * 优先级：nickname > username > id
+     * 使用不可变的租户和账号 ID；昵称和用户名都不能作为隔离边界。
      */
     default String resolveUserId(AgentContext context) {
-        if (context == null) {
-            return "default_user";
+        AccountVO userInfo = context == null ? null : context.getUserInfo();
+        if (context == null || context.getTenantId() == null || userInfo == null || userInfo.getId() == null
+                || userInfo.getId() == 0L) {
+            throw new IllegalStateException("长期记忆缺少服务端租户或账号身份");
         }
-        AccountVO userInfo = context.getUserInfo();
-        if (userInfo == null) {
-            return "default_user";
-        }
-        if (userInfo.getNickname() != null && !userInfo.getNickname().isEmpty()) {
-            return userInfo.getNickname();
-        }
-        if (userInfo.getUsername() != null && !userInfo.getUsername().isEmpty()) {
-            return userInfo.getUsername();
-        }
-        return String.valueOf(userInfo.getId());
+        return com.gmd.faq.server.main.common.util.AgentStateScope.userId(context.getTenantId(), userInfo.getId());
     }
 
     default LongTermMemoryMode getMemoryMode(JsonNode config) {

@@ -69,6 +69,7 @@ public class ReActAgentHelper {
     private final com.gmd.faq.server.main.agent.service.AgentModelResiliencePolicy modelResiliencePolicy;
     private final com.gmd.faq.server.main.agent.service.AgentConversationQueue conversationQueue;
     private final com.gmd.faq.server.main.engine.plan.AgentPlanService planService;
+    private final com.gmd.faq.server.main.sensitive.service.SensitiveWordConfigService sensitiveWordConfigService;
 
     @Autowired(required = false)
     private AgentStateStore stateStore = new InMemoryAgentStateStore();
@@ -120,6 +121,10 @@ public class ReActAgentHelper {
                 .defaultSessionId(AgentContext.get().getThreadId())
                 .sysPrompt(agentSysPromptFactory.getAgentSysPrompt(definition, codeExecutionConfig != null))
                 .toolkit(toolkit);
+        var sensitiveConfig = !Boolean.TRUE.equals(definition.getSensitiveFilterEnabled()) || definition.getSensitiveWordConfigId() == null
+                ? null : sensitiveWordConfigService.getById(definition.getSensitiveWordConfigId());
+        var sensitivePolicy = com.gmd.faq.server.main.engine.sensitive.SensitiveWordPolicy.from(definition, sensitiveConfig);
+        builder.middleware(new com.gmd.faq.server.main.engine.sensitive.SensitiveWordMiddleware(sensitivePolicy));
         var repository = skillBoxFactory.getRepository(definition, toolkit, codeExecutionConfig, executionRole);
         builder.skillRepository(repository).dynamicSkillsEnabled(false)
                 .middleware(new ReadOnlySkillMiddleware(repository, toolkit, codeExecutionConfig != null));
@@ -161,6 +166,7 @@ public class ReActAgentHelper {
         // 使用可变列表，避免 getHooks 返回 List.of() 时 add 抛 UnsupportedOperationException
         List<Hook> hooks = hooksFactory.getHooks(definition);
         hooks = hooks != null ? new ArrayList<>(hooks) : new ArrayList<>();
+        hooks.add(new com.gmd.faq.server.main.engine.sensitive.SensitiveWordDirectReturnHook(sensitivePolicy));
         hooks.removeIf(com.gmd.faq.server.main.engine.workspace.hook.WebsocketHook.class::isInstance);
         builder.middleware(hooksFactory.workspaceNotifications());
         if (executionRole.isSubAgent()) {
@@ -250,6 +256,7 @@ public class ReActAgentHelper {
         if (codeExecutionId == null) {
             return null;
         }
-        return codeExecutionConfigService.getById(codeExecutionId);
+        CodeExecutionConfig config = codeExecutionConfigService.getById(codeExecutionId);
+        return config != null && Boolean.TRUE.equals(config.getEnabled()) ? config : null;
     }
 }

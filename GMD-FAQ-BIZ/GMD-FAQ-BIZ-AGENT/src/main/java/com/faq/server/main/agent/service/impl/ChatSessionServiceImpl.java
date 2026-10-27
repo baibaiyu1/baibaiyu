@@ -782,7 +782,7 @@ public class ChatSessionServiceImpl extends ServiceImpl<ChatSessionMapper, ChatS
         String transientKey = com.gmd.faq.server.main.common.util.AgentStateScope.userId(
                 session.getTenantId(), session.getUserId()) + "_transient:" + session.getId();
         agentScopeSessionMapper.delete(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.gmd.faq.server.main.common.entity.AgentScopeSession>()
-                .in("session_id", String.valueOf(session.getId()), durableKey, transientKey)
+                .in("session_id", String.valueOf(session.getId()), durableKey, transientKey, durableKey + ":attachments")
                 .or().apply("session_id LIKE {0} ESCAPE '!'", durableKey.replace("_", "!_") + ":subagent:%")
                 .or().apply("session_id LIKE {0} ESCAPE '!'", transientKey.replace("_", "!_") + ":subagent:%"));
         if (sessionManager != null) sessionManager.removeSession(String.valueOf(session.getId()));

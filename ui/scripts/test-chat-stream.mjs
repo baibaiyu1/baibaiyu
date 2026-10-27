@@ -5,7 +5,7 @@ import { createServer } from 'vite'
 import { createRenderer, ref } from 'vue'
 
 const stubs = {
-  'ant-design-vue': 'export const message = { error(value) { globalThis.__chatStreamErrors?.push(value) } }',
+  'ant-design-vue': 'export const message = { error(value) { globalThis.__chatStreamErrors?.push(value) }, warning(value) { globalThis.__chatStreamWarnings?.push(value) } }',
   '@/stores': 'export const useAccountStore = () => ({ userInfo: { id: "account" } })',
   '@/api/auth': 'export const refreshToken = () => {}',
   '@/config/setting.ts': 'export default { tokenHeader: "Authorization" }',
@@ -142,6 +142,20 @@ test('completed replies remain distinct from reasoning that shares the backend m
         const { submitted } = await consume(text, false, true)
         assert.equal(submitted.forwardedProps.planMode, true)
         assert.equal(submitted.forwardedProps.planActive, false)
+      })
+
+      await t.test('sensitive word warnings are visible while the answer continues', async () => {
+        const previous = globalThis.__chatStreamWarnings
+        globalThis.__chatStreamWarnings = []
+        try {
+          const { saved } = await consume([
+            { type: 'CUSTOM', name: 'SENSITIVE_WORD_WARNING', value: { message: '输入内容命中敏感词，本次对话继续。' } },
+            ...text,
+            { type: 'CUSTOM', name: 'SENSITIVE_WORD_WARNING', value: { message: '模型回复命中敏感词，请注意甄别。' } },
+          ])
+          assert.deepEqual(globalThis.__chatStreamWarnings, ['输入内容命中敏感词，本次对话继续。', '模型回复命中敏感词，请注意甄别。'])
+          assert.ok(saved.some(item => item.role === 'assistant' && item.content === '正式回复'))
+        } finally { globalThis.__chatStreamWarnings = previous }
       })
 
       await t.test('reasoning and the completed answer have unique display identities', async () => {

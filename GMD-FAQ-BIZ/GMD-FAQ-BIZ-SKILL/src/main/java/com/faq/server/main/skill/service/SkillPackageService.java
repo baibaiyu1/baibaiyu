@@ -51,4 +51,7 @@ public interface SkillPackageService extends IService<SkillPackage> {
     SkillPackage requireManageable(Long id);
 
     boolean updateTools(Long id, List<Long> toolIds);
+
+    /** 技能内容或依赖变化后，在事务提交后清理关联运行实例。 */
+    void refreshBoundAgents(Long id);
 }

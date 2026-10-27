@@ -1,6 +1,5 @@
 package com.gmd.faq.server.main.engine.tool;
 
-import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
@@ -17,8 +16,10 @@ import java.nio.file.Path;
 public class LoadFileTextContentTool {
 
     private final ReadFileTool readFileTool;
+    private final DocumentTextAccess documentTextAccess;
 
-    public LoadFileTextContentTool() {
+    public LoadFileTextContentTool(DocumentTextAccess documentTextAccess) {
+        this.documentTextAccess = documentTextAccess;
         // 限制文件访问范围到 .baibaiyu 临时文件目录
         String baseDir = DocumentTextFiles.getTempFilesDir().toString();
         this.readFileTool = new ReadFileTool(baseDir);
@@ -54,24 +55,24 @@ public class LoadFileTextContentTool {
                     String ranges) {
         // 防御 null 参数：AI 模型可能传入异常值，避免 NPE 穿透
         if (textFileName == null || textFileName.isBlank()) {
-            return Mono.just(ToolResultBlock.builder()
-                    .id("load_file_text_content")
-                    .output(TextBlock.builder()
-                            .text("Error: gmd_faq_file_name is required and cannot be empty")
-                            .build())
-                    .build());
+            return Mono.just(ToolResultBlock.error("Error: gmd_faq_file_name is required and cannot be empty"));
         }
 
-        // 校验文件存在性，文件不存在时返回友好提示而非底层异常
+        if (!textFileName.matches("[0-9]{1,19}\\.baibaiyu")) {
+            return Mono.just(ToolResultBlock.error("无效的附件正文文件名"));
+        }
+        try {
+            Long fileId = DocumentTextAccess.parseId(textFileName.substring(0, textFileName.lastIndexOf('.')));
+            documentTextAccess.requireForSession(fileId, com.gmd.faq.server.main.engine.agui.AgentContext.get());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return Mono.just(ToolResultBlock.error("附件不存在或未授权给当前会话"));
+        }
+        // 鉴权后再检查缓存，不暴露其他附件是否已解析。
         Path filePath = DocumentTextFiles.getTempFilesDir().resolve(textFileName).normalize();
-        if (!filePath.startsWith(DocumentTextFiles.getTempFilesDir()) || !Files.exists(filePath)) {
-            return Mono.just(ToolResultBlock.builder()
-                    .id("load_file_text_content")
-                    .output(TextBlock.builder()
-                            .text("Error: .baibaiyu file not found for '" + textFileName
-                                    + "'. The file may not have been parsed yet or was deleted.")
-                            .build())
-                    .build());
+        if (!filePath.startsWith(DocumentTextFiles.getTempFilesDir())
+                || !Files.isRegularFile(filePath, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            return Mono.just(ToolResultBlock.error("Error: .baibaiyu file not found for '" + textFileName
+                    + "'. The file may not have been parsed yet or was deleted."));
         }
 
         return readFileTool.viewTextFile(textFileName, ranges);

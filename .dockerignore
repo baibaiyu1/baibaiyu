@@ -3,6 +3,7 @@
 .gitignore
 .idea
 .baibaiyu
+.apboa
 .agents
 .claude
 .codex

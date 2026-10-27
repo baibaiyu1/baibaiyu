@@ -12,6 +12,8 @@ import com.gmd.faq.server.main.engine.agent.ReActAgentHelper;
 import com.gmd.faq.server.main.engine.agui.AgentContext;
 import com.gmd.faq.server.main.engine.mcp.McpClientFactory;
 import com.gmd.faq.server.main.engine.tool.dynamices.DynamicAgentTool;
+import com.gmd.faq.server.main.engine.tool.builtins.BochaWebSearchTool;
+import com.gmd.faq.server.main.engine.tool.builtins.WebPageFetchTool;
 import com.gmd.faq.server.main.engine.workspace.tool.SearchReplaceFileTool;
 import com.gmd.faq.server.main.tool.service.AgentToolService;
 import com.gmd.faq.server.main.tool.service.ToolService;
@@ -50,6 +52,7 @@ public class ToolkitFactory {
     private final WorkflowService workflowService;
     private final WorkflowRunService workflowRunService;
     private final WorkflowDefinitionCompiler workflowDefinitionCompiler;
+    private final DocumentTextAccess documentTextAccess;
 
     public ToolkitFactory(ToolService toolService,
                           AgentToolService agentToolService,
@@ -66,7 +69,8 @@ public class ToolkitFactory {
                           WorkflowService workflowService,
                           WorkflowRunService workflowRunService,
                           WorkflowDefinitionCompiler workflowDefinitionCompiler,
-                          CustomToolkitConfig customToolkitConfig) {
+                          CustomToolkitConfig customToolkitConfig,
+                          DocumentTextAccess documentTextAccess) {
         this.toolService = toolService;
         this.agentToolService = agentToolService;
         this.agentSubAgentService = agentSubAgentService;
@@ -81,6 +85,7 @@ public class ToolkitFactory {
         this.workflowRunService = workflowRunService;
         this.workflowDefinitionCompiler = workflowDefinitionCompiler;
         this.customToolkitConfig = customToolkitConfig;
+        this.documentTextAccess = documentTextAccess;
     }
 
 
@@ -111,7 +116,7 @@ public class ToolkitFactory {
         Long codeExecutionId = agentCodeExecutionService.getCodeExecutionIdByAgentId(agentDefinition.getId());
         if (codeExecutionId != null) {
             CodeExecutionConfig config = codeExecutionConfigService.getById(codeExecutionId);
-            if (config != null && config.getEnabled() && config.getEnableWrite()) {
+            if (config != null && Boolean.TRUE.equals(config.getEnabled()) && Boolean.TRUE.equals(config.getEnableWrite())) {
                 toolkit.registerTool(new SearchReplaceFileTool());
             }
         }
@@ -129,7 +134,7 @@ public class ToolkitFactory {
         }
 
         // 注册文档附件文本读取工具（所有智能体无条件注册）
-        toolkit.registerTool(new LoadFileTextContentTool());
+        toolkit.registerTool(new LoadFileTextContentTool(documentTextAccess));
         ((ProjectToolkit) toolkit).trustReadTools("load_file_text_content");
 
         return toolkit;
@@ -191,10 +196,18 @@ public class ToolkitFactory {
                     if (tool == null) {
                         // 内置工具注册
                         if (toolConfig.getToolType() == ToolType.BUILTIN) {
-                            toolkit.registerTool(ToolsRegister.getTool(toolConfig.getClassPath()));
+                            IAgentTool builtin = ToolsRegister.getTool(toolConfig.getClassPath());
+                            toolkit.registerTool(builtin);
                             AgentTool registered = toolkit.getTool(toolConfig.getToolId());
-                            if (registered != null) toolkit.registerAgentTool(new PermissionAwareTool(registered,
-                                    toolConfig.getReturnDirect(), Boolean.TRUE.equals(toolConfig.getNeedConfirm())));
+                            if (registered != null) {
+                                toolkit.registerAgentTool(new PermissionAwareTool(registered,
+                                        toolConfig.getReturnDirect(), Boolean.TRUE.equals(toolConfig.getNeedConfirm())));
+                                // 只信任服务端实际注册的这两个内置实例；同名动态工具和 MCP 不继承只读资格。
+                                if (toolkit instanceof ProjectToolkit project
+                                        && (builtin instanceof BochaWebSearchTool || builtin instanceof WebPageFetchTool)) {
+                                    project.trustReadTools(registered.getName());
+                                }
+                            }
                         } else {
                             // 动态工具注册
                             toolkit.registerAgentTool(new PermissionAwareTool(new DynamicAgentTool(toolConfig),

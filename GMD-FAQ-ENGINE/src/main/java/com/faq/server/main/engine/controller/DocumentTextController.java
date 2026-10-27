@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class DocumentTextController {
     private final FileTextExtractService fileTextExtractService;
+    private final com.gmd.faq.server.main.engine.tool.DocumentTextAccess documentTextAccess;
 
     /** fileId 必须为纯数字，防止路径遍历攻击 */
     private static final Pattern FILE_ID_PATTERN = Pattern.compile("^\\d+$");
@@ -34,7 +35,7 @@ public class DocumentTextController {
      */
     @PostMapping(value = "/parse-text/{fileId}", name = "触发文档文本提取")
     public R<Boolean> parseText(@PathVariable("fileId") String fileId) {
-        if (!FILE_ID_PATTERN.matcher(fileId).matches()) {
+        if (!validFileId(fileId)) {
             return R.fail("无效的文件ID");
         }
         boolean result = fileTextExtractService.extractAndSave(Long.valueOf(fileId));
@@ -48,12 +49,13 @@ public class DocumentTextController {
      */
     @GetMapping(value = "/file-text/{fileId}", name = "读取 .baibaiyu 文件纯文本")
     public ResponseEntity<String> getFileText(@PathVariable("fileId") String fileId) {
-        if (!FILE_ID_PATTERN.matcher(fileId).matches()) {
+        if (!validFileId(fileId)) {
             return ResponseEntity.badRequest().body("无效的文件ID");
         }
+        documentTextAccess.requireOwned(Long.valueOf(fileId));
         try {
             Path textFile = DocumentTextFiles.getTextFilePath(Long.valueOf(fileId));
-            if (!Files.exists(textFile)) {
+            if (!Files.isRegularFile(textFile, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 return ResponseEntity.notFound().build();
             }
             String content = Files.readString(textFile, StandardCharsets.UTF_8);
@@ -61,7 +63,13 @@ public class DocumentTextController {
                     .contentType(new MediaType("text", "plain", StandardCharsets.UTF_8))
                     .body(content);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("读取文件失败: " + e.getMessage());
+            return ResponseEntity.internalServerError().body("读取文件失败");
         }
+    }
+
+    private boolean validFileId(String fileId) {
+        if (fileId == null || !FILE_ID_PATTERN.matcher(fileId).matches()) return false;
+        try { return Long.parseLong(fileId) > 0; }
+        catch (NumberFormatException e) { return false; }
     }
 }

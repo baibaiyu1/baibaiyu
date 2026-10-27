@@ -327,6 +327,11 @@ export function useChatStream(
         }
      },
       onCustom: (event) => {
+        if (event.name === 'SENSITIVE_WORD_WARNING') {
+          const value = event.value as { message?: string }
+          message.warning(value?.message || '本次对话命中敏感词，请注意甄别。')
+          return
+        }
         if (event.name === 'KNOWLEDGE_RETRIEVAL') {
           const value = event.value as { toolCallId?: string; status?: string }
           if (!value?.toolCallId) return

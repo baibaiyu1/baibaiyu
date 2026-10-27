@@ -248,6 +248,7 @@ python scripts/export-source.py
 | [AGENTS.md](AGENTS.md) | 开发约束、权限与状态不变量、验证要求 |
 | [docker/README.md](docker/README.md) | 部署架构、单机 / 多节点编排、环境变量参考 |
 | [docker/shared-storage.md](docker/shared-storage.md) | 多节点 NFSv4、权限与文件同步边界 |
+| [外部客服接口与调用教程](docs/integration/customer-service-api.md) | SkKey 接入、完整接口清单、会话、图片文件和 Postman 示例 |
 | [数据库迁移指南](GMD-FAQ-RUNNER-CONSOLE/src/main/resources/db/migration/README.md) | V1 基线、增量迁移与临时库验证 |
 | [构建手册](ui/src/doc/content/build-doc/index.md) | 构建产物、服务分工与部署入口 |
 | [智能体手册](ui/src/doc/content/agent/index.md) / [对话手册](ui/src/doc/content/chat/index.md) | 配置、发布、记忆、审批、图片和文件 |

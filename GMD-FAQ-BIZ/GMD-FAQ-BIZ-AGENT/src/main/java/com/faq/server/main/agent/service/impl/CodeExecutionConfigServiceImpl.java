@@ -26,6 +26,30 @@ import java.util.stream.Collectors;
 public class CodeExecutionConfigServiceImpl extends ServiceImpl<CodeExecutionConfigMapper, CodeExecutionConfig> implements CodeExecutionConfigService {
     private final JdbcTemplate jdbcTemplate;
     private final AgentCodeExecutionService agentCodeExecutionService;
+    private final com.gmd.faq.server.main.common.cluster.core.MessagePublisher messagePublisher;
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public boolean doUpdate(CodeExecutionConfig config) {
+        boolean updated = updateById(config);
+        if (updated) refreshAgents(agentCodeExecutionService.getAgentIds(List.of(config.getId())));
+        return updated;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public boolean deleteConfigs(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return true;
+        List<Long> agentIds = agentCodeExecutionService.getAgentIds(ids);
+        boolean removed = removeByIds(ids);
+        if (removed) refreshAgents(agentIds);
+        return removed;
+    }
+
+    private void refreshAgents(List<Long> agentIds) {
+        agentIds.stream().distinct().forEach(id -> messagePublisher.publishAfterCommit(
+                com.gmd.faq.server.main.common.consts.RedisChannelTopic.AGENT_REREGISTER_CHANNEL, String.valueOf(id)));
+    }
 
     @Override
     public List<Object> usedWithAgent(List<Long> ids) {
