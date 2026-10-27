@@ -71,7 +71,7 @@ async function load() {
   loading.value = true
   try {
     const [modelRes, providerRes] = await Promise.all([
-      modelApi.configPage({ page: 1, size: 1000, enabled: true } as never),
+      modelApi.conversationConfigPage({ page: 1, size: 1000, enabled: true } as never),
       modelApi.providerPage({ page: 1, size: 200 } as never)
     ])
     models.value = modelRes.data.data.records || []

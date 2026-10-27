@@ -10,6 +10,7 @@ import com.gmd.faq.server.main.common.r.ResultCode;
 import com.gmd.faq.server.main.common.util.BeanUtils;
 import com.gmd.faq.server.main.common.vo.KnowledgeBaseConfigVO;
 import com.gmd.faq.server.main.knowledge.service.KnowledgeBaseConfigService;
+import com.gmd.faq.server.main.knowledge.service.KnowledgeModelService;
 import com.gmd.faq.server.main.resource.visibility.service.ResourceVisibilityService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -33,6 +34,13 @@ public class KnowledgeBaseConfigController {
 
     private final KnowledgeBaseConfigService knowledgeBaseConfigService;
     private final ResourceVisibilityService resourceVisibilityService;
+    private final KnowledgeModelService knowledgeModels;
+
+    @GetMapping("/model-options")
+    @PermNeed({"knowledge:config:list"})
+    public R<List<KnowledgeModelService.Option>> modelOptions() {
+        return R.data(knowledgeModels.options());
+    }
 
     /**
      * 知识库来源字典（供前端下拉/标签直接渲染，新增来源时只需在此扩展）
@@ -75,11 +83,10 @@ public class KnowledgeBaseConfigController {
     public R<KnowledgeBaseConfigVO> detail(@PathVariable("id") Long id) {
         resourceVisibilityService.assertViewable("KNOWLEDGE", id);
         KnowledgeBaseConfig entity = knowledgeBaseConfigService.getById(id);
-
-        KnowledgeBaseConfigVO vo = BeanUtils.copy(entity, KnowledgeBaseConfigVO.class);
-        if (vo == null) {
+        if (entity == null) {
             return R.fail(ResultCode.NOT_FOUND, "知识库配置不存在");
         }
+        KnowledgeBaseConfigVO vo = BeanUtils.copy(entity, KnowledgeBaseConfigVO.class);
         vo.setUsed(knowledgeBaseConfigService.usedWithAgent(List.of(id)));
 
         return R.data(vo);

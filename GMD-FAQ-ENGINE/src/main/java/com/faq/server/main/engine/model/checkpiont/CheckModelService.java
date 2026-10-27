@@ -26,6 +26,8 @@ import java.time.LocalDateTime;
 public class CheckModelService {
     private final ModelConfigService modelConfigService;
     private final ChatModelFactory chatModelFactory;
+    private final com.gmd.faq.server.main.knowledge.service.KnowledgeModelService knowledgeModels;
+    private final com.gmd.faq.server.main.engine.rag.EmbeddingService embeddings;
 
     @RequestMapping("/check/{modelId}")
     public R<CheckModelResult> checkModel(@PathVariable("modelId") Long modelId) {
@@ -35,6 +37,36 @@ public class CheckModelService {
         try {
 
             ModelWrapper config = modelConfigService.getModelWrapperById(modelId);
+            var types = config.getConfig().getModelType();
+            if (types != null && types.toString().contains("\"EMBEDDING\"")) {
+                embeddings.embed("connection test", knowledgeModels.embeddingProbeConfig(modelId));
+                updateConnectivityResult(modelId, "CONNECTED", null);
+                return R.data(new CheckModelResult(true, "向量模型连接成功"));
+            }
+            if (types != null && types.toString().contains("\"RERANK\"")) {
+                var spec = knowledgeModels.rerankProbeSpec(modelId);
+                var body = new java.util.LinkedHashMap<String, Object>();
+                body.put("model", spec.path("model").asText());
+                boolean aliyun = "aliyun".equals(spec.path("binding").asText());
+                if (aliyun) {
+                    body.put("input", java.util.Map.of("query", "connection", "documents", java.util.List.of("connection test")));
+                    body.put("parameters", java.util.Map.of("top_n", 1));
+                } else {
+                    body.put("query", "connection");
+                    body.put("documents", java.util.List.of("connection test"));
+                    body.put("top_n", 1);
+                }
+                var request = org.springframework.web.reactive.function.client.WebClient.create().post()
+                        .uri(spec.path("host").asText()).contentType(org.springframework.http.MediaType.APPLICATION_JSON);
+                if (!spec.path("api_key").asText("").isBlank()) request.header("Authorization", "Bearer " + spec.path("api_key").asText());
+                var result = request.bodyValue(body).retrieve().bodyToMono(com.fasterxml.jackson.databind.JsonNode.class)
+                        .timeout(java.time.Duration.ofSeconds(30)).block();
+                var rows = result == null ? null : aliyun ? result.path("output").path("results") : result.path("results");
+                if (rows == null || !rows.isArray() || rows.isEmpty() || !rows.get(0).path("relevance_score").isNumber())
+                    throw new IllegalArgumentException("重排接口返回格式无效");
+                updateConnectivityResult(modelId, "CONNECTED", null);
+                return R.data(new CheckModelResult(true, "重排模型连接成功"));
+            }
 
             ModelConfigWrapper configWrapper = new ModelConfigWrapper();
             config.getConfig().fillModelConfigWrapper(configWrapper);

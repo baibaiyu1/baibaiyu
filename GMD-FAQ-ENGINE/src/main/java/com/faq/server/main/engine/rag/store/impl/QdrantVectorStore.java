@@ -40,7 +40,7 @@ public class QdrantVectorStore implements VectorStore {
     /**
      * 支持的向量维度列表
      */
-    private static final int[] SUPPORTED_DIMENSIONS = {64, 128, 256, 512, 768, 1024, 2048, 2560};
+    private static final int[] SUPPORTED_DIMENSIONS = com.gmd.faq.server.main.common.consts.LocalEmbeddingDimensions.values();
 
     private final QdrantClient qdrantClient;
     private final String collectionPrefix;

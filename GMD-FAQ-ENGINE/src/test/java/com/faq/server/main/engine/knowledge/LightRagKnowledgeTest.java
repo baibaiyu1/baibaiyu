@@ -80,6 +80,8 @@ class LightRagKnowledgeTest {
         server.start();
         config = new KnowledgeBaseConfig();
         config.setId(42L);
+        config.setEnabled(true);
+        config.setKbType(com.gmd.faq.server.main.common.enums.KbType.LIGHTRAG);
         config.setConnectionConfig(MAPPER.createObjectNode()
                 .put("baseUrl", "http://127.0.0.1:" + server.getAddress().getPort() + "/site/")
                 .put("apiKey", "test-key"));
@@ -96,7 +98,10 @@ class LightRagKnowledgeTest {
 
     @Test
     void retrievesGraphAndSourcesWithoutFabricatingScoresOrForwardingIdentity() {
-        var knowledge = new LightRagIKnowledge(MAPPER).build(config);
+        var configs = org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.KnowledgeBaseConfigService.class);
+        org.mockito.Mockito.when(configs.getById(config.getId())).thenReturn(config);
+        var knowledge = new LightRagIKnowledge(MAPPER,
+                org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.LightRagModelSyncService.class), configs).build(config);
         var docs = knowledge.retrieve("  如何使用知识库？  ", RetrieveConfig.builder().limit(1).scoreThreshold(0.99).build()).block(WAIT);
         assertNotNull(docs);
         assertEquals(2, docs.size(), "图谱上下文不能被片段上限截掉");
@@ -323,6 +328,35 @@ class LightRagKnowledgeTest {
 
     private String baseUrl() {
         return "http://127.0.0.1:" + server.getAddress().getPort() + "/site";
+    }
+
+    @Test
+    void blocksStaleConnectionsAndPendingModelChangesBeforeQuerying() {
+        var configs = org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.KnowledgeBaseConfigService.class);
+        var sync = org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.LightRagModelSyncService.class);
+        org.mockito.Mockito.when(configs.getById(config.getId())).thenReturn(config);
+        var knowledge = new LightRagIKnowledge(MAPPER, sync, configs).build(config);
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("须重启 LightRAG")).when(sync).ensureReady(config);
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> knowledge.retrieve("pending", null).block(WAIT))
+                .getMessage().contains("重启"));
+        assertTrue(requests.isEmpty());
+        org.mockito.Mockito.reset(sync);
+        config.setConnectionConfig(MAPPER.createObjectNode().put("baseUrl", baseUrl()).put("apiKey", "rotated"));
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> knowledge.retrieve("changed", null).block(WAIT))
+                .getMessage().contains("连接已变更"));
+        org.mockito.Mockito.verifyNoInteractions(sync);
+        assertTrue(requests.isEmpty());
+    }
+
+    @Test
+    void propagatesTenantIntoModelValidationOnBoundedElastic() {
+        com.gmd.faq.server.main.common.util.TenantUtils.setCurrentTenant(9L, "test");
+        try {
+            var knowledge = new LightRagKnowledge(config, MAPPER, () ->
+                    assertEquals(9L, com.gmd.faq.server.main.common.util.TenantUtils.getCurrentTenantId()));
+            assertNotNull(knowledge.retrieve("知识库", null).block(WAIT));
+            assertEquals(1, requests.size());
+        } finally { com.gmd.faq.server.main.common.util.TenantUtils.clear(); }
     }
 
     private record Request(String path, JsonNode body, String apiKey, String authorization, String workspace) {}

@@ -3,6 +3,7 @@ import type {ApiResponse, CheckModelResult, PageResult} from '@/types'
 import type { ModelConfigDTO, ModelConfigVO, ModelProviderDTO, ModelProviderVO } from '@/types'
 import type { ModelConfig, ModelProvider } from '@/types'
 import type { ReasoningCapabilities } from '@/types/reasoning'
+import { ModelType } from '@/types'
 
 export function reasoningCapabilities(query: { providerId: string; modelId: string; apiType: string; profile: string }) {
   return request.get<ApiResponse<ReasoningCapabilities>>('/api/model/config/reasoning-capabilities', { params: query })
@@ -16,6 +17,14 @@ export function configPage(query: ModelConfigDTO) {
   return request.get<ApiResponse<PageResult<ModelConfigVO>>>('/api/model/config/page', {
     params: query
   })
+}
+
+/** 对话选择器保留文本和多模态模型，排除只提供向量或重排接口的模型。 */
+export async function conversationConfigPage(query: ModelConfigDTO) {
+  const response = await configPage(query)
+  response.data.data.records = (response.data.data.records || []).filter(model =>
+    !model.modelType?.length || model.modelType.some(type => ![ModelType.EMBEDDING, ModelType.RERANK].includes(type)))
+  return response
 }
 
 /**

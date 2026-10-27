@@ -46,6 +46,8 @@ const emit = defineEmits<{
  * ============================================================ */
 const modelTypeLabels: Record<string, string> = {
   CHAT: '文本',
+  EMBEDDING: '向量',
+  RERANK: '重排',
   IMAGE: '图像',
   AUDIO: '音频',
   VIDEO: '视频'

@@ -38,10 +38,12 @@ public class OllamaEmbeddingProvider implements EmbeddingProvider {
 
     @Override
     public String execute(WebClient webClient, String path, String requestBody, JsonNode connectionConfig) {
-        return webClient.post()
+        var request = webClient.post()
                 .uri(path)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestBody)
+                .contentType(MediaType.APPLICATION_JSON);
+        String key = connectionConfig.path("apiKey").asText("");
+        if (!key.isBlank()) request.header("Authorization", "Bearer " + key);
+        return request.bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(String.class)
                 .block();

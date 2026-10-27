@@ -36,6 +36,8 @@ const emit = defineEmits<{
 
 const formRef = ref()
 const loading = ref<boolean>(false)
+const embeddingDimension = ref<number | undefined>()
+const embeddingSendDimensions = ref(false)
 const reasoning = ref<ReasoningSettings>(defaultReasoning())
 const reasoningProfile = ref('AUTO')
 const capabilities = ref<ReasoningCapabilities>()
@@ -79,15 +81,17 @@ const formData = ref<{
 })
 
 const isEdit = computed(() => !!props.data?.id)
-const isResponses = computed(() => props.providerType === 'OPEN_AI' && formData.value.apiType === 'RESPONSES')
-watch(() => [props.visible, props.providerId, formData.value.modelId, formData.value.apiType, reasoningProfile.value],
+const isEmbedding = computed(() => formData.value.modelType.includes(ModelType.EMBEDDING))
+const isChat = computed(() => formData.value.modelType.some(type => ![ModelType.EMBEDDING, ModelType.RERANK].includes(type)))
+const isResponses = computed(() => isChat.value && props.providerType === 'OPEN_AI' && formData.value.apiType === 'RESPONSES')
+watch(() => [props.visible, props.providerId, formData.value.modelId, formData.value.apiType, reasoningProfile.value, isChat.value],
   (_value, _previous, onCleanup) => {
     let stale = false
     capabilities.value = undefined
-    capabilitiesLoading.value = !!props.visible && !!props.providerId && !!formData.value.modelId
+    capabilitiesLoading.value = isChat.value && !!props.visible && !!props.providerId && !!formData.value.modelId
     onCleanup(() => { stale = true; clearTimeout(timer) })
     const timer = setTimeout(async () => {
-      if (!props.visible || !props.providerId || !formData.value.modelId) { capabilitiesLoading.value = false; return }
+      if (!isChat.value || !props.visible || !props.providerId || !formData.value.modelId) { capabilitiesLoading.value = false; return }
       capabilitiesLoading.value = true
       try {
         const result = await modelApi.reasoningCapabilities({ providerId: props.providerId, modelId: formData.value.modelId,
@@ -102,6 +106,8 @@ watch(() => [props.visible, props.providerId, formData.value.modelId, formData.v
  * 模型类型选项
  */
 const modelTypeOptions = [
+  { label: '向量模型', value: ModelType.EMBEDDING },
+  { label: '重排模型', value: ModelType.RERANK },
   { label: '文本模型', value: ModelType.CHAT },
   { label: '图像模型', value: ModelType.IMAGE },
   { label: '音频模型', value: ModelType.AUDIO },
@@ -113,6 +119,8 @@ watch(
   (newVal) => {
     if (newVal) {
       if (props.data) {
+        embeddingDimension.value = props.data.extendConfig?.embeddingDimension
+        embeddingSendDimensions.value = props.data.extendConfig?.embeddingSendDimensions ?? false
         const ec = props.data.extendConfig as ExtendConfigData | null
         reasoning.value = modelReasoning(props.data)
         reasoningProfile.value = ec?.reasoningProfile || 'AUTO'
@@ -186,6 +194,8 @@ const rules = {
  * 重置表单
  */
 function resetForm() {
+  embeddingDimension.value = undefined
+  embeddingSendDimensions.value = false
   reasoning.value = defaultReasoning()
   reasoningProfile.value = 'AUTO'
   capabilities.value = undefined
@@ -216,8 +226,12 @@ function resetForm() {
 async function handleSubmit() {
   try {
     await formRef.value?.validate()
-    if (capabilitiesLoading.value || !capabilities.value) {
+    if (isChat.value && (capabilitiesLoading.value || !capabilities.value)) {
       message.warning('请等待模型推理能力加载完成')
+      return
+    }
+    if (isEmbedding.value && (!embeddingDimension.value || !Number.isInteger(embeddingDimension.value) || embeddingDimension.value < 1 || embeddingDimension.value > 65536)) {
+      message.warning('请设置有效的向量输出维度')
       return
     }
     loading.value = true
@@ -226,7 +240,7 @@ async function handleSubmit() {
       providerId: props.providerId,
       name: formData.value.name,
       modelId: formData.value.modelId,
-      apiType: props.providerType === 'OPEN_AI' ? formData.value.apiType : 'CHAT_COMPLETIONS',
+      apiType: isChat.value && props.providerType === 'OPEN_AI' ? formData.value.apiType : 'CHAT_COMPLETIONS',
       responsesSampling: formData.value.responsesSampling,
       modelType: formData.value.modelType,
       description: formData.value.description,
@@ -240,7 +254,8 @@ async function handleSubmit() {
       repeatPenalty: formData.value.repeatPenalty,
       seed: formData.value.seed,
       extendConfig: { ...(formData.value.extendConfig || { headers: {}, queryParams: {}, bodyParams: {} }),
-        reasoning: reasoning.value, reasoningProfile: reasoningProfile.value }
+        ...(isChat.value ? { reasoning: reasoning.value, reasoningProfile: reasoningProfile.value } : {}),
+        ...(isEmbedding.value ? { embeddingDimension: embeddingDimension.value, embeddingSendDimensions: embeddingSendDimensions.value } : {}) }
     } as ModelConfig
 
     if (isEdit.value && props.data) {
@@ -354,7 +369,7 @@ async function handleViewProvider() {
           <AInput v-model:value="formData.modelId" placeholder="请输入模型ID，如: gpt-4" />
         </AFormItem>
 
-        <AFormItem v-if="providerType === 'OPEN_AI'" label="请求协议" name="apiType">
+        <AFormItem v-if="providerType === 'OPEN_AI' && isChat" label="请求协议" name="apiType">
           <ASelect v-model:value="formData.apiType" :options="[
             { label: 'Chat Completions', value: 'CHAT_COMPLETIONS' },
             { label: 'Responses', value: 'RESPONSES' }
@@ -380,6 +395,14 @@ async function handleViewProvider() {
           </ASelect>
         </AFormItem>
 
+        <template v-if="isEmbedding">
+          <AFormItem label="向量输出维度" required extra="填写模型实际输出的维度，知识库索引与查询必须一致。">
+            <AInputNumber v-model:value="embeddingDimension" :min="1" :max="65536" :precision="0" style="width: 100%" />
+          </AFormItem>
+          <AFormItem label="请求指定输出维度" extra="仅在向量接口支持 dimensions 参数时开启；Ollama 通常使用模型默认维度。">
+            <ASwitch v-model:checked="embeddingSendDimensions" />
+          </AFormItem>
+        </template>
         <AFormItem label="描述" name="description">
           <ATextarea
             v-model:value="formData.description"
@@ -389,7 +412,7 @@ async function handleViewProvider() {
         </AFormItem>
       </div>
 
-      <div class="form-section">
+      <div v-if="isChat" class="form-section">
         <div class="section-title">功能开关</div>
 
         <ARow :gutter="24">
@@ -401,7 +424,7 @@ async function handleViewProvider() {
         </ARow>
       </div>
 
-      <div class="form-section">
+      <div v-if="isChat" class="form-section">
         <div class="section-title">参数配置</div>
 
         <ARow :gutter="16">
@@ -521,7 +544,7 @@ async function handleViewProvider() {
         </AFormItem>
       </div>
 
-      <div class="form-section">
+      <div v-if="isChat" class="form-section">
         <div class="section-title">默认推理设置</div>
         <AFormItem v-if="providerType === 'OPEN_AI' || providerType === 'ORCA_ROUTER'" label="推理兼容类型">
           <ASelect v-model:value="reasoningProfile" :options="[
@@ -531,7 +554,7 @@ async function handleViewProvider() {
           ]" />
           <div class="text-placeholder text-xs mt-xs">代理服务请选择实际兼容类型。智能体选择独立配置后，不再跟随这里的默认值。</div>
         </AFormItem>
-        <ReasoningFields v-model="reasoning" :capabilities="capabilities" :max-tokens="formData.maxTokens" />
+        <ReasoningFields v-if="isChat" v-model="reasoning" :capabilities="capabilities" :max-tokens="formData.maxTokens" />
       </div>
 
       <div class="form-section">

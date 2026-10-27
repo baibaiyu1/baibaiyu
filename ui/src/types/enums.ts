@@ -72,6 +72,8 @@ export enum ModelProviderType {
  */
 export enum ModelType {
   CHAT = 'CHAT',
+  EMBEDDING = 'EMBEDDING',
+  RERANK = 'RERANK',
   IMAGE = 'IMAGE',
   VIDEO = 'VIDEO',
   AUDIO = 'AUDIO'

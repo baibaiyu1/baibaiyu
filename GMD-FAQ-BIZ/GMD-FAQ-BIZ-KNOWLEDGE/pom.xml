@@ -18,6 +18,15 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.gmd.faq.server.main</groupId>
+            <artifactId>GMD-FAQ-BIZ-MODEL</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.gmd.faq.server.main</groupId>
             <artifactId>GMD-FAQ-COMMON</artifactId>
         </dependency>

@@ -11,6 +11,7 @@ import com.gmd.faq.server.main.common.entity.AgentKnowledgeBase;
 import com.gmd.faq.server.main.common.entity.KnowledgeBaseConfig;
 import com.gmd.faq.server.main.knowledge.mapper.KnowledgeBaseConfigMapper;
 import com.gmd.faq.server.main.knowledge.service.KnowledgeBaseConfigService;
+import com.gmd.faq.server.main.knowledge.service.KnowledgeModelService;
 import com.gmd.faq.server.main.resource.visibility.service.ResourceVisibilityService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class KnowledgeBaseConfigServiceImpl extends ServiceImpl<KnowledgeBaseCon
     private final AgentKnowledgeBaseServiceImpl agentKnowledgeBaseService;
     private final MessagePublisher messagePublisher;
     private final ResourceVisibilityService resourceVisibilityService;
+    private final KnowledgeModelService knowledgeModels;
 
     @Override
     public List<Object> usedWithAgent(List<Long> ids) {
@@ -62,6 +64,7 @@ public class KnowledgeBaseConfigServiceImpl extends ServiceImpl<KnowledgeBaseCon
 
     @Override
     public boolean save(KnowledgeBaseConfig entity) {
+        knowledgeModels.validateReferences(entity);
         // 归属人由服务端写入：客户端传 ownerId / visibility 一律不作数
         ResourceOwnershipSupport.initOwnership(entity);
         return super.save(entity);
@@ -82,7 +85,27 @@ public class KnowledgeBaseConfigServiceImpl extends ServiceImpl<KnowledgeBaseCon
 
     @Override
     public boolean doUpdate(KnowledgeBaseConfig entity) {
-        ResourceOwnershipSupport.assertManageable(getById(entity.getId()), "修改");
+        KnowledgeBaseConfig current = getById(entity.getId());
+        ResourceOwnershipSupport.assertManageable(current, "修改");
+        if (entity.getKbType() == null) entity.setKbType(current.getKbType());
+        if (entity.getConnectionConfig() == null) entity.setConnectionConfig(current.getConnectionConfig());
+        if (current.getConnectionConfig() != null && current.getConnectionConfig().path("platformModelsManaged").asBoolean()
+                && entity.getConnectionConfig() instanceof com.fasterxml.jackson.databind.node.ObjectNode connection)
+            connection.put("platformModelsManaged", true);
+        knowledgeModels.validateReferences(entity);
+        if (current.getKbType() == com.gmd.faq.server.main.common.enums.KbType.LOCAL
+                && !java.util.Objects.equals(current.getConnectionConfig().path("dimension"), entity.getConnectionConfig().path("dimension")))
+            throw new IllegalArgumentException("本地知识库创建后不能修改向量维度，请新建知识库");
+        if (current.getKbType() == com.gmd.faq.server.main.common.enums.KbType.LOCAL
+                && !java.util.Objects.equals(current.getConnectionConfig(), entity.getConnectionConfig())) {
+            boolean changed = List.of("embeddingModelId", "embeddingIdentity", "embeddingModel", "providerType", "baseUrl").stream()
+                    .anyMatch(key -> !java.util.Objects.equals(current.getConnectionConfig().path(key), entity.getConnectionConfig().path(key)));
+            if (changed) {
+                Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + TableConst.RAG_DOCUMENT
+                        + " WHERE knowledge_base_config_id = ? AND tenant_id = ?", Long.class, current.getId(), TenantUtils.getCurrentTenantId());
+                if (count == null || count > 0) throw new IllegalArgumentException("已有文档的知识库不能更换向量模型，请先清空文档或新建知识库");
+            }
+        }
         // 归属与可见性只能走「可见性」专用接口，避免被 update 顺带篡改
         entity.setOwnerId(null);
         entity.setVisibility(null);

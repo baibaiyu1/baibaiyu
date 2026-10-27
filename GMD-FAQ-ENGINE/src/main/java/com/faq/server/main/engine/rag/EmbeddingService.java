@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gmd.faq.server.main.common.entity.KnowledgeBaseConfig;
 import com.gmd.faq.server.main.common.util.JsonUtils;
 import com.gmd.faq.server.main.engine.rag.embedding.EmbeddingProvider;
+import com.gmd.faq.server.main.knowledge.service.KnowledgeModelService;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,10 +34,12 @@ public class EmbeddingService {
             .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
     private final List<EmbeddingProvider> providers;
+    private final KnowledgeModelService knowledgeModels;
     private final Map<String, EmbeddingProvider> providerMap = new HashMap<>();
 
-    public EmbeddingService(List<EmbeddingProvider> providers) {
+    public EmbeddingService(List<EmbeddingProvider> providers, KnowledgeModelService knowledgeModels) {
         this.providers = providers;
+        this.knowledgeModels = knowledgeModels;
     }
 
     @PostConstruct
@@ -58,7 +62,7 @@ public class EmbeddingService {
             return new ArrayList<>();
         }
 
-        JsonNode connectionConfig = config.getConnectionConfig();
+        JsonNode connectionConfig = knowledgeModels.embeddingConnection(config);
         EmbeddingProvider provider = resolveProvider(connectionConfig);
         String fullUrl = getFullUrl(connectionConfig, provider);
         String modelName = getModelName(connectionConfig, provider);
@@ -77,6 +81,8 @@ public class EmbeddingService {
 
             WebClient webClient = WebClient.builder()
                     .baseUrl(base)
+                    .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(
+                            reactor.netty.http.client.HttpClient.create().responseTimeout(Duration.ofSeconds(120))))
                     .exchangeStrategies(exchangeStrategies)
                     .build();
 
@@ -86,9 +92,18 @@ public class EmbeddingService {
                 int end = Math.min(i + batchSize, texts.size());
                 List<String> batch = texts.subList(i, end);
 
-                String requestBody = objectMapper.writeValueAsString(new EmbedRequest(modelName, batch, dimension));
+                Map<String, Object> body = new java.util.LinkedHashMap<>();
+                body.put("model", modelName);
+                body.put("input", batch);
+                if (dimension != null && (!connectionConfig.hasNonNull("embeddingModelId") || connectionConfig.path("sendDimensions").asBoolean(false)))
+                    body.put("dimensions", dimension);
+                String requestBody = objectMapper.writeValueAsString(body);
                 String response = provider.execute(webClient, path, requestBody, connectionConfig);
-                allResults.addAll(provider.parseResponse(response));
+                List<float[]> vectors = provider.parseResponse(response);
+                if (vectors.size() != batch.size() || vectors.stream().anyMatch(vector -> vector.length == 0
+                        || dimension != null && vector.length != dimension))
+                    throw new IllegalStateException("向量模型返回的数量或维度与配置不一致");
+                allResults.addAll(vectors);
 
                 if (log.isDebugEnabled()) {
                     log.debug("Embedding批次完成, provider={}, batch {}-{}/{}", provider.getType(), i + 1, end, texts.size());
@@ -165,11 +180,19 @@ public class EmbeddingService {
     }
 
     private int getBufferSizeMb(JsonNode connectionConfig) {
-        return JsonUtils.getIntValue(connectionConfig, "bufferSizeMb", 50);
+        return boundedInteger(connectionConfig, "bufferSizeMb", 50, 1, 512);
     }
 
     private int getBatchSize(JsonNode connectionConfig) {
-        return JsonUtils.getIntValue(connectionConfig, "batchSize", 10);
+        return boundedInteger(connectionConfig, "batchSize", 10, 1, 100);
+    }
+
+    private static int boundedInteger(JsonNode config, String key, int defaultValue, int min, int max) {
+        if (!config.has(key)) return defaultValue;
+        JsonNode value = config.get(key);
+        if (!value.isIntegralNumber() || !value.canConvertToInt() || value.intValue() < min || value.intValue() > max)
+            throw new IllegalArgumentException(key + " 须为 " + min + " 到 " + max + " 之间的整数");
+        return value.intValue();
     }
 
     /**
@@ -187,9 +210,4 @@ public class EmbeddingService {
         return null;
     }
 
-    /**
-     * Embed API 请求体
-     */
-    private record EmbedRequest(String model, List<String> input, Integer dimension) {
-    }
 }

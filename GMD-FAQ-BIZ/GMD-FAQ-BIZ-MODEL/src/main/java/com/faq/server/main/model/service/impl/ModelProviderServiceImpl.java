@@ -30,6 +30,7 @@ public class ModelProviderServiceImpl extends ServiceImpl<ModelProviderMapper, M
     private final ModelConfigMapper modelConfigMapper;
     private final JdbcTemplate jdbcTemplate;
     private final MessagePublisher messagePublisher;
+    private final com.gmd.faq.server.main.model.service.KnowledgeModelReferences knowledgeReferences;
 
     @Override
     public List<Object> usedWithModel(List<Long> ids) {
@@ -45,6 +46,8 @@ public class ModelProviderServiceImpl extends ServiceImpl<ModelProviderMapper, M
 
     @Override
     public boolean deleteByIds(List<Long> ids) {
+        knowledgeReferences.assertUnreferenced(modelConfigMapper.selectList(new LambdaQueryWrapper<ModelConfig>()
+                .in(ModelConfig::getProviderId, ids)).stream().map(ModelConfig::getId).toList());
         // 删除前先获取关联的智能体ID（两级：供应商→模型配置→智能体）
         List<Long> agentIds = getAgentIdsByProviderIds(ids);
         boolean result = removeByIds(ids);

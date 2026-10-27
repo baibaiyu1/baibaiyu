@@ -116,7 +116,7 @@ const currentModel = computed(() =>
  */
 async function loadModels() {
   try {
-    const response = await modelApi.configPage({ page: 1, size: 1000, enabled: true } as never)
+    const response = await modelApi.conversationConfigPage({ page: 1, size: 1000, enabled: true } as never)
     models.value = response.data.data.records || []
   } catch (e) {
     console.error('加载模型列表失败:', e)

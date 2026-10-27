@@ -71,7 +71,8 @@ class LightRagManagementTest {
         when(configs.getById(42L)).thenReturn(config);
         UserUtils.setBackgroundUserDetail(UserDetail.builder().id(7L).tenantId(9L).authType(UserUtils.AUTH_ACCOUNT)
                 .perms(List.of("knowledge:config:edit")).build());
-        var service = new LightRagManagementService(configs, visibility, JSON);
+        var service = new LightRagManagementService(configs, visibility, JSON,
+                mock(com.gmd.faq.server.main.knowledge.service.LightRagModelSyncService.class));
         mvc = MockMvcBuilders.standaloneSetup(new LightRagManagementController(service))
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(JSON)).build();
     }

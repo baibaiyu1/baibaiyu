@@ -43,8 +43,14 @@ public final class LightRagKnowledge implements Knowledge {
     private final ObjectNode retrieval;
     private final Duration timeout;
     private final int maxRetries;
+    private final Runnable ensureModels;
 
     public LightRagKnowledge(KnowledgeBaseConfig config, ObjectMapper mapper) {
+        this(config, mapper, () -> {});
+    }
+
+    public LightRagKnowledge(KnowledgeBaseConfig config, ObjectMapper mapper, Runnable ensureModels) {
+        this.ensureModels = ensureModels;
         if (config == null || config.getConnectionConfig() == null || !config.getConnectionConfig().isObject()) {
             throw new IllegalArgumentException("知识图谱连接配置不能为空");
         }
@@ -103,7 +109,7 @@ public final class LightRagKnowledge implements Knowledge {
 
     @Override
     public Mono<List<Document>> retrieve(String query, RetrieveConfig config) {
-        return Mono.defer(() -> {
+        return Mono.fromRunnable(ensureModels).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic()).then(Mono.defer(() -> {
             if (query == null || query.isBlank()) {
                 return Mono.error(new IllegalArgumentException("检索内容不能为空"));
             }
@@ -143,7 +149,7 @@ public final class LightRagKnowledge implements Knowledge {
             return response.map(body -> convert(body, limit, query))
                     .onErrorMap(error -> error instanceof RequestFailure ? error : new RequestFailure(
                             error instanceof TimeoutException ? "知识图谱检索超时" : "知识图谱检索失败，请检查连接配置与服务状态", false));
-        }).contextCapture();
+        })).contextCapture();
     }
 
     private List<Document> convert(JsonNode response, int limit, String query) {

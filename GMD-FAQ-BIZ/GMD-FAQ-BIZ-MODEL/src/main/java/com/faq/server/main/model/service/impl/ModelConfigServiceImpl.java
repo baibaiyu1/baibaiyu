@@ -32,6 +32,7 @@ public class ModelConfigServiceImpl extends ServiceImpl<ModelConfigMapper, Model
     private final JdbcTemplate jdbcTemplate;
     private final ModelProviderService modelProviderService;
     private final MessagePublisher messagePublisher;
+    private final com.gmd.faq.server.main.model.service.KnowledgeModelReferences knowledgeReferences;
 
     @Override
     public boolean save(ModelConfig entity) {
@@ -48,6 +49,17 @@ public class ModelConfigServiceImpl extends ServiceImpl<ModelConfigMapper, Model
         if (protocol == ModelApiType.RESPONSES && (provider == null || provider.getType() != ModelProviderType.OPEN_AI))
             throw new IllegalArgumentException("Responses 协议仅支持 OpenAI 类型供应商");
         var extend = entity.getExtendConfig() != null ? entity.getExtendConfig() : current == null ? null : current.getExtendConfig();
+        var types = entity.getModelType() != null ? entity.getModelType() : current == null ? null : current.getModelType();
+        boolean embedding = types != null && types.toString().contains("\"EMBEDDING\"");
+        boolean rerank = types != null && types.toString().contains("\"RERANK\"");
+        if (embedding || rerank) {
+            if (protocol == ModelApiType.RESPONSES) throw new IllegalArgumentException("向量和重排模型不使用 Responses 协议");
+            if (embedding && (extend == null || !extend.path("embeddingDimension").isIntegralNumber()
+                    || !extend.path("embeddingDimension").canConvertToInt() || extend.path("embeddingDimension").asInt() < 1
+                    || extend.path("embeddingDimension").asInt() > 65536))
+                throw new IllegalArgumentException("向量模型必须设置 1 到 65536 之间的输出维度");
+            if (types != null && !types.toString().contains("\"CHAT\"") && !types.toString().contains("\"IMAGE\"")) return;
+        }
         var reasoning = extend == null ? null : extend.get("reasoning");
         com.gmd.faq.server.main.common.model.ReasoningConfigSupport.rejectConflicts(extend, reasoning);
         if (provider != null) {
@@ -89,6 +101,7 @@ public class ModelConfigServiceImpl extends ServiceImpl<ModelConfigMapper, Model
     @Override
     public List<Object> usedWithAgent(List<Long> ids) {
         ArrayList<Object> names = new ArrayList<>();
+        names.addAll(knowledgeReferences.names(ids));
         getAgentDefinitions(ids).forEach(agentDefinition -> {
             names.add(agentDefinition.getName());
         });
@@ -98,6 +111,7 @@ public class ModelConfigServiceImpl extends ServiceImpl<ModelConfigMapper, Model
 
     @Override
     public boolean deleteByIds(List<Long> ids) {
+        knowledgeReferences.assertUnreferenced(ids);
         // 删除前先获取关联的智能体ID，以便后续触发重新注册
         List<Long> agentIds = getAgentDefinitions(ids).stream().map(AgentDefinition::getId).toList();
         boolean result = removeByIds(ids);

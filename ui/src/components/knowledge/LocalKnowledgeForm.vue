@@ -8,6 +8,8 @@ import { ref, reactive, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { type KnowledgeBaseConfig, type KnowledgeBaseConfigVO, KbType, RAGMode } from '@/types'
 import * as knowledgeApi from '@/api/knowledge'
+import KnowledgeModelSelect from './KnowledgeModelSelect.vue'
+import { useKnowledgeModelOptions } from '@/composables/useKnowledgeModelOptions'
 
 /**
  * Props定义
@@ -33,6 +35,10 @@ const isEdit = computed(() => !!props.data?.id)
  * 表单引用
  */
 const formRef = ref()
+const { models, loading: modelsLoading } = useKnowledgeModelOptions()
+const usePlatformModel = ref(true)
+const supportedDimensions = [64, 128, 256, 512, 768, 1024, 1536, 2048, 2560, 3072]
+const localModels = computed(() => models.value.filter(model => model.dimension && supportedDimensions.includes(model.dimension)))
 
 /**
  * 表单数据
@@ -62,6 +68,7 @@ const configSectionOptions = [
  * 本地RAG连接配置
  */
 const localConnection = reactive({
+  embeddingModelId: undefined as string | undefined,
   providerType: 'ollama' as 'ollama' | 'bailian',
   baseUrl: 'http://localhost:11434/api/embed',
   apiKey: '',
@@ -149,7 +156,9 @@ function loadConfigData() {
   const { connectionConfig, retrievalConfig } = props.data!
 
   if (connectionConfig) {
+    usePlatformModel.value = !!connectionConfig.embeddingModelId
     Object.assign(localConnection, {
+      embeddingModelId: connectionConfig.embeddingModelId ? String(connectionConfig.embeddingModelId) : undefined,
       providerType: connectionConfig.providerType || 'ollama',
       baseUrl: connectionConfig.baseUrl || (connectionConfig.providerType === 'bailian' ? 'https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings' : 'http://localhost:11434/api/embed'),
       apiKey: connectionConfig.apiKey || '',
@@ -179,7 +188,12 @@ function buildSubmitData(): KnowledgeBaseConfig {
     data.id = formData.id
   }
 
-  data.connectionConfig = {
+  data.connectionConfig = usePlatformModel.value ? {
+    embeddingModelId: localConnection.embeddingModelId,
+    dimension: localConnection.dimension,
+    bufferSizeMb: localConnection.bufferSizeMb,
+    batchSize: localConnection.batchSize
+  } : {
     providerType: localConnection.providerType,
     baseUrl: localConnection.baseUrl,
     apiKey: localConnection.providerType === 'bailian' ? (localConnection.apiKey || undefined) : undefined,
@@ -204,6 +218,16 @@ function buildSubmitData(): KnowledgeBaseConfig {
 async function handleSubmit() {
   try {
     await formRef.value?.validate()
+    if (usePlatformModel.value && !localConnection.embeddingModelId) {
+      message.warning('请选择平台向量模型')
+      return
+    }
+    const selected = models.value.find(model => model.id === localConnection.embeddingModelId)
+    if (usePlatformModel.value && (!selected || !selected.dimension || !supportedDimensions.includes(selected.dimension)
+      || (isEdit.value && selected.dimension !== localConnection.dimension))) {
+      message.warning('请选用输出维度与知识库一致的可用向量模型')
+      return
+    }
 
     const submitData = buildSubmitData()
 
@@ -219,6 +243,10 @@ async function handleSubmit() {
   } catch (error) {
     console.error('表单验证失败:', error)
   }
+}
+
+function selectEmbedding(model?: knowledgeApi.KnowledgeModelOption) {
+  if (model?.dimension && !isEdit.value) localConnection.dimension = model.dimension
 }
 
 /**
@@ -275,6 +303,16 @@ function handleCancel() {
         <!-- 连接配置 -->
         <div v-show="activeConfigSection === 'connection'" class="config-content">
           <h4 style="margin-bottom: 12px">连接配置</h4>
+          <AFormItem label="模型来源">
+            <ARadioGroup v-model:value="usePlatformModel">
+              <ARadio :value="true">平台模型管理</ARadio>
+              <ARadio v-if="isEdit && !props.data?.connectionConfig?.embeddingModelId" :value="false">原有手动配置</ARadio>
+            </ARadioGroup>
+          </AFormItem>
+          <AFormItem v-if="usePlatformModel" label="向量模型" :extra="`先在模型管理中添加向量类型模型。支持维度：${supportedDimensions.join('、')}；地址和密钥由平台统一读取。`">
+            <KnowledgeModelSelect v-model:value="localConnection.embeddingModelId" usage="EMBEDDING" :models="localModels" :loading="modelsLoading" @change="selectEmbedding" />
+          </AFormItem>
+          <template v-if="!usePlatformModel">
           <AFormItem label="模型提供商" :rules="[{ required: true, message: '请选择模型提供商' }]">
             <ASelect v-model:value="localConnection.providerType" @change="handleProviderTypeChange" style="width: 100%">
               <ASelectOption value="ollama">Ollama</ASelectOption>
@@ -311,19 +349,14 @@ function handleCancel() {
             </div>
           </AFormItem>
 
+          </template>
           <AFormItem label="向量化维度（仅可选择一次）" :rules="[{ required: true, message: '请选择向量化维度' }]">
-            <ASelect v-model:value="localConnection.dimension" :disabled="isEdit" style="width: 100%">
-              <ASelectOption :value="64">64</ASelectOption>
-              <ASelectOption :value="128">128</ASelectOption>
-              <ASelectOption :value="256">256</ASelectOption>
-              <ASelectOption :value="512">512</ASelectOption>
-              <ASelectOption :value="768">768</ASelectOption>
-              <ASelectOption :value="1024">1024</ASelectOption>
-              <ASelectOption :value="2048">2048</ASelectOption>
-              <ASelectOption :value="2560">2560</ASelectOption>
+            <AInputNumber v-if="usePlatformModel" :value="localConnection.dimension" disabled style="width: 100%" />
+            <ASelect v-else v-model:value="localConnection.dimension" :disabled="isEdit" style="width: 100%">
+              <ASelectOption v-for="dimension in supportedDimensions" :key="dimension" :value="dimension">{{ dimension }}</ASelectOption>
             </ASelect>
             <div style="color: var(--color-text-secondary); font-size: 12px; margin-top: 4px;">
-              默认1024，新增后不可修改。1024 维度是性能与成本的最佳平衡点，适用于绝大多数语义检索任务
+              平台模型自动带出输出维度。创建后不可修改；更换向量模型前需清空文档并重建索引。
             </div>
           </AFormItem>
 

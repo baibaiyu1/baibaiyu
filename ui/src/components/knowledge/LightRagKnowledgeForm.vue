@@ -4,16 +4,32 @@ import { message, type FormInstance } from 'ant-design-vue'
 import { HealthStatus, KbType, RAGMode, type KnowledgeBaseConfig, type KnowledgeBaseConfigVO } from '@/types'
 import { LIGHTRAG_DEFAULTS, LIGHTRAG_MODES } from '@/constants/lightrag'
 import * as knowledgeApi from '@/api/knowledge'
+import KnowledgeModelSelect from './KnowledgeModelSelect.vue'
+import { useKnowledgeModelOptions } from '@/composables/useKnowledgeModelOptions'
 
 const props = defineProps<{ data?: KnowledgeBaseConfigVO }>()
 const emit = defineEmits<{ success: []; cancel: [] }>()
 const formRef = ref<FormInstance>()
 const saving = ref(false)
+const syncing = ref(false)
+const { models, loading: modelsLoading } = useKnowledgeModelOptions()
+const modelFields = [
+  { key: 'llmModelId', label: '默认文本模型', usage: 'CHAT', placeholder: '使用 LightRAG 服务原配置' },
+  { key: 'extractModelId', label: '实体、关系抽取与摘要模型', usage: 'CHAT', placeholder: '使用默认文本模型或服务原配置' },
+  { key: 'keywordModelId', label: '检索关键词模型', usage: 'CHAT', placeholder: '使用默认文本模型或服务原配置' },
+  { key: 'queryModelId', label: '检索测试回答模型', usage: 'CHAT', placeholder: '使用默认文本模型或服务原配置' },
+  { key: 'vlmModelId', label: '图片理解模型', usage: 'IMAGE', placeholder: '使用 LightRAG 服务原配置' },
+  { key: 'embeddingModelId', label: '向量模型', usage: 'EMBEDDING', placeholder: '使用 LightRAG 服务原配置' },
+  { key: 'rerankModelId', label: '重排模型', usage: 'RERANK', placeholder: '使用 LightRAG 服务原配置' }
+] as const
 const activeSection = ref('connection')
 const isEdit = computed(() => !!props.data?.id)
 const form = reactive({
   name: '', description: '',
-  connection: { baseUrl: '', apiKey: '' },
+  connection: { baseUrl: '', apiKey: '', llmModelId: undefined as string | undefined,
+    extractModelId: undefined as string | undefined, keywordModelId: undefined as string | undefined,
+    queryModelId: undefined as string | undefined, vlmModelId: undefined as string | undefined,
+    embeddingModelId: undefined as string | undefined, rerankModelId: undefined as string | undefined },
   retrieval: { ...LIGHTRAG_DEFAULTS },
   http: { timeoutSeconds: 180, maxRetries: 0 }
 })
@@ -51,7 +67,7 @@ async function save() {
       ...(isEdit.value ? { id: String(props.data!.id) } : {}),
       name: form.name.trim(), description: form.description.trim(), kbType: KbType.LIGHTRAG,
       ragMode: props.data?.ragMode || RAGMode.AGENTIC,
-      connectionConfig: { baseUrl: form.connection.baseUrl.trim().replace(/\/+$/, ''), apiKey: form.connection.apiKey.trim() },
+      connectionConfig: { ...form.connection, baseUrl: form.connection.baseUrl.trim().replace(/\/+$/, ''), apiKey: form.connection.apiKey.trim() },
       retrievalConfig: { ...form.retrieval }, httpConfig: { ...form.http },
       endpointConfig: null, rerankingConfig: null, queryRewriteConfig: null, metadataFilters: null,
       healthStatus: props.data?.healthStatus || HealthStatus.UNKNOWN,
@@ -59,11 +75,26 @@ async function save() {
     }
     if (isEdit.value) await knowledgeApi.update(data)
     else await knowledgeApi.save(data)
-    message.success('保存成功')
+    if (isEdit.value) {
+      await syncModels()
+    } else message.success('保存成功；选择平台模型后，首次使用前会同步至 LightRAG')
     emit('success')
   } finally {
     saving.value = false
   }
+}
+
+async function syncModels() {
+  if (!props.data?.id) return
+  syncing.value = true
+  try {
+    const result = (await knowledgeApi.syncLightRagModels(String(props.data.id))).data.data
+    if (result?.restart_required) {
+      message.warning(result.rebuild_required
+        ? '模型配置已同步。请停止 LightRAG，重建已有向量索引，再重启服务。'
+        : '模型配置已同步，请重启 LightRAG 服务后使用。', 10)
+    } else message.success('模型配置已生效')
+  } finally { syncing.value = false }
 }
 </script>
 
@@ -79,7 +110,7 @@ async function save() {
       <AFormItem label="描述" name="description" :rules="[{ max: 200, message: '描述最多200个字符' }]">
         <ATextarea v-model:value="form.description" :rows="3" placeholder="说明知识库内容与适用范围" />
       </AFormItem>
-      <ASegmented v-model:value="activeSection" :options="[{ label: '连接配置', value: 'connection' }, { label: '检索配置', value: 'retrieval' }, { label: 'HTTP 配置', value: 'http' }]" block />
+      <ASegmented v-model:value="activeSection" :options="[{ label: '连接配置', value: 'connection' }, { label: '模型配置', value: 'models' }, { label: '检索配置', value: 'retrieval' }, { label: 'HTTP 配置', value: 'http' }]" block />
       <div v-show="activeSection === 'connection'" class="config-content">
         <AFormItem label="服务地址（Base URL）" :name="['connection', 'baseUrl']" :rules="[{ required: true, message: '请输入服务地址' }, { validator: validateUrl, trigger: 'blur' }]" extra="填写对应知识库的服务地址；不同工作区应连接各自的服务实例。">
           <AInput v-model:value="form.connection.baseUrl" placeholder="例如：http://knowledge-service:9621" />
@@ -87,6 +118,14 @@ async function save() {
         <AFormItem label="API 密钥（X-API-Key）" :name="['connection', 'apiKey']" extra="填写知识图谱服务的 API 密钥；服务未启用密钥认证时可留空。">
           <AInputPassword v-model:value="form.connection.apiKey" placeholder="请输入 API Key" autocomplete="new-password" />
         </AFormItem>
+      </div>
+      <div v-show="activeSection === 'models'" class="config-content">
+        <AAlert type="info" show-icon message="选择平台已启用的模型，统一使用模型管理中的地址与认证。" description="保存后同步配置，重启 LightRAG 生效。向量模型必须与已有索引一致；更换时先停止服务并重建索引。LightRAG 需配置 API 密钥；一个服务工作区绑定一个知识库。" />
+        <AFormItem v-for="field in modelFields" :key="field.key" :label="field.label">
+          <KnowledgeModelSelect v-model:value="form.connection[field.key]" :models="models" :loading="modelsLoading"
+            :usage="field.usage" :placeholder="field.placeholder" />
+        </AFormItem>
+        <AButton v-if="isEdit" :loading="syncing" @click="syncModels">同步已保存的模型配置</AButton>
       </div>
       <div v-show="activeSection === 'retrieval'" class="config-content">
         <AFormItem label="检索模式" :name="['retrieval', 'mode']" :rules="[{ required: true }]">
@@ -101,7 +140,7 @@ async function save() {
         <AFormItem v-for="item in [{ key: 'maxEntityTokens', label: '实体 Token 上限' }, { key: 'maxRelationTokens', label: '关系 Token 上限' }, { key: 'maxTotalTokens', label: '总上下文 Token 上限' }] as const" :key="item.key" :label="item.label" :name="['retrieval', item.key]" :rules="[{ required: true, type: 'integer', min: 1, max: 1000000 }]">
           <AInputNumber v-model:value="form.retrieval[item.key]" :min="1" :max="1000000" :precision="0" />
         </AFormItem>
-        <AFormItem label="启用重排" extra="需要在知识图谱服务中配置重排模型。">
+        <AFormItem label="启用重排" extra="在模型配置中选择平台重排模型，或使用 LightRAG 服务已有的重排模型。">
           <ASwitch v-model:checked="form.retrieval.enableRerank" />
         </AFormItem>
         <p class="text-secondary">知识图谱使用服务端检索策略筛选结果，不提供统一相关度分数。</p>

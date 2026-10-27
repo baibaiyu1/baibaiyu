@@ -39,7 +39,7 @@ public class MilvusVectorStore implements VectorStore {
 
     private static final Logger log = LoggerFactory.getLogger(MilvusVectorStore.class);
 
-    private static final int[] SUPPORTED_DIMENSIONS = {64, 128, 256, 512, 768, 1024, 2048, 2560};
+    private static final int[] SUPPORTED_DIMENSIONS = com.gmd.faq.server.main.common.consts.LocalEmbeddingDimensions.values();
 
     private final MilvusServiceClient milvusClient;
 

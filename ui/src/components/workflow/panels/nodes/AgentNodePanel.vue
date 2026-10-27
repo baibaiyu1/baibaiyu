@@ -130,7 +130,7 @@ async function loadModelProviders() {
 }
 
 async function loadAllModels() {
-  const response = await modelApi.configPage({ page: 1, size: 1000, enabled: true })
+  const response = await modelApi.conversationConfigPage({ page: 1, size: 1000, enabled: true })
   allModels.value = response.data.data.records || []
 }
 

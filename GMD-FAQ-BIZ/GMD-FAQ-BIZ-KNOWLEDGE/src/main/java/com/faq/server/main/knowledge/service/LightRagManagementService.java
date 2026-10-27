@@ -47,9 +47,15 @@ public class LightRagManagementService {
     private final KnowledgeBaseConfigService configs;
     private final ResourceVisibilityService visibility;
     private final ObjectMapper objectMapper;
+    private final LightRagModelSyncService modelSync;
+
+    public com.fasterxml.jackson.databind.JsonNode syncModels(Long id) {
+        return modelSync.sync(manageable(id));
+    }
 
     public boolean prepare(Long id) {
         KnowledgeBaseConfig config = manageable(id);
+        modelSync.ensureReady(config);
         client(config).get().uri(target(config, "/auth/verify", "")).retrieve().toBodilessEntity();
         client(config).get().uri(target(config, "/health", "")).retrieve().toBodilessEntity();
         return true;
@@ -64,6 +70,8 @@ public class LightRagManagementService {
                     || Set.of("cross-site", "same-site").contains(String.valueOf(request.getHeader("Sec-Fetch-Site")))) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "请从知识库管理页面操作");
             }
+            if (!"GET".equals(request.getMethod()) && !Set.of("/documents/paginated", "/documents/cancel_pipeline").contains(path))
+                modelSync.ensureReady(config);
             RestClient.RequestBodySpec outgoing = client(config).method(HttpMethod.valueOf(request.getMethod()))
                     .uri(target(config, path, query(path, request)));
             if (request instanceof MultipartHttpServletRequest multipart) {
@@ -93,6 +101,8 @@ public class LightRagManagementService {
             writeError(response, ex.getStatusCode().value(), ex.getReason());
         } catch (RestClientException ex) {
             writeError(response, 502, "无法连接知识图谱服务，请检查服务地址、API 密钥和服务状态");
+        } catch (IllegalArgumentException ex) {
+            writeError(response, 409, ex.getMessage());
         }
     }
 

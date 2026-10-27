@@ -126,7 +126,10 @@ LightRAG 独立部署，平台通过 Runtime 请求其 `/query/data` 检索接�
 - Console 与 Runtime 都必须能够访问该基础地址。管理页通过 `/api/knowledge/config/{id}/lightrag/` 访问 Console，沿用平台登录 Cookie，每次请求重新校验知识库管理权限；无需为浏览器暴露 LightRAG 端口或设置 CORS。Console 仅连接 API，不代理远端页面和静态资源；只使用已保存的远端密钥，不转发平台登录令牌、Cookie 或工作区切换头。进入管理页先检查 `/auth/verify` 和 `/health`，配套 LightRAG 后端需支持这两个接口。
 - Runtime 容器访问 Windows/macOS 宿主机服务，可使用 `http://host.docker.internal:9621`；LightRAG 的监听地址、端口发布和防火墙必须允许 Runtime 访问。仅发布到宿主机 `127.0.0.1` 的端口通常无法由其他容器访问。Linux 需按部署环境配置可达地址或 host-gateway 映射。
 - 一个平台配置对应一个 LightRAG 实例启动时的工作区；多个隔离知识库使用不同实例地址。平台不会通过请求头切换工作区，同一工作区内的文档不能再用平台配置权限拆分。
-- 配置单次请求超时时间和重试次数时，同时检查反向代理超时；默认单次 180 秒、不重试。检索关键词提取、嵌入及重排所用的模型在 LightRAG 配置。
+- 配置单次请求超时时间和重试次数时，同时检查反向代理超时；默认单次 180 秒、不重试。文本抽取、关键词、图片理解、向量及重排模型可从平台模型管理中选择，未选角色继续使用 LightRAG 环境配置。
+- 平台模型同步需要配套 LightRAG 支持 `PUT /models/config`，且必须设置 `LIGHTRAG_API_KEY`。平台后端发送该服务密钥和从模型管理解析的模型配置，不转发用户登录令牌。同步配置保存在 LightRAG `working_dir` 下的 `platform_models_<workspace>.json`，须持久化该目录并限制访问；文件包含运行所需模型凭证，不对外提供读取接口。
+- 同步模型后重启 LightRAG 的全部 worker/容器；该配置不做进程内热替换。已有向量数据切换模型时停止服务，使用同一工作目录及工作区运行 `lightrag-rebuild-vdb`，再启动服务；重建工具也读取已同步的模型配置。模型身份与维度检查继续生效，不自动清除或覆盖原索引。具体命令以配套 LightRAG 的 `docs/PlatformModels.md` 为准。
+- 同一 LightRAG 工作区只接受一个平台知识库的模型绑定，标识为租户 ID 与知识库 ID。更换绑定时须停止服务，由运维核对工作目录与数据归属后处理同步文件，再重新同步、重启。运行配置及密钥更新后重复同步和重启；清空选择后同步、重启恢复环境配置。
 - 文档管理代理不自动重试写请求。上传沿用 Console 的 multipart 限制（默认单文件 30 MB、单请求 100 MB）及前端 Nginx 的 `client_max_body_size`；需要更大文档时同步调整两者。图谱写入、检索对话、系统设置和其他 LightRAG API 不通过管理代理开放。
 - 知识库图片需要 LightRAG 的 `/query/data` 支持 `include_images=true` 并返回 `data.images`（Base64、MIME、caption 和来源）；平台与 LightRAG 均须升级。图片读取只使用本次命中文档的既有 sidecar，不新增检索或图片分析请求；旧版本仅返回文字和引用。代理响应体限制需容纳图片 Base64，LightRAG 默认图片原始总量上限 8 MiB。
 

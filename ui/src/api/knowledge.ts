@@ -4,6 +4,24 @@ import type { ApiResponse, PageResult } from '@/types'
 import type { KnowledgeBaseConfigDTO, KnowledgeBaseConfigVO, KnowledgeSourceVO } from '@/types'
 import type { KnowledgeBaseConfig } from '@/types'
 
+export interface KnowledgeModelOption {
+  id: string
+  name: string
+  modelId: string
+  providerName: string
+  usages: string[]
+  dimension?: number
+}
+
+export function modelOptions() {
+  return request.get<ApiResponse<KnowledgeModelOption[]>>('/api/knowledge/config/model-options')
+}
+
+export function syncLightRagModels(id: string) {
+  return request.put<ApiResponse<{ status: string; restart_required: boolean; rebuild_required: boolean } | null>>(
+    `/api/knowledge/config/${id}/lightrag/models`)
+}
+
 /**
  * 知识库来源字典（后端驱动，新增来源无需改前端）
  * GET /knowledge/config/sources

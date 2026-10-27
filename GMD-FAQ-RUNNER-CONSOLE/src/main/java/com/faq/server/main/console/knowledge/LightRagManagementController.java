@@ -19,6 +19,11 @@ import java.io.IOException;
 public class LightRagManagementController {
     private final LightRagManagementService management;
 
+    @PutMapping("/models")
+    public R<com.fasterxml.jackson.databind.JsonNode> syncModels(@PathVariable("id") Long id) {
+        return R.data(management.syncModels(id));
+    }
+
     @GetMapping("/management")
     public R<Boolean> prepare(@PathVariable("id") Long id) {
         try {
@@ -27,6 +32,8 @@ public class LightRagManagementController {
             return R.fail(ex.getReason());
         } catch (RestClientException ex) {
             return R.fail("无法连接知识图谱服务，请检查服务地址、API 密钥和服务状态");
+        } catch (IllegalArgumentException ex) {
+            return R.fail(ex.getMessage());
         }
     }
 
