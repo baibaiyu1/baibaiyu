@@ -1,0 +1,17 @@
+{
+  "project": "MinerU",
+  "version": "3.4.5",
+  "repository": "https://github.com/opendatalab/MinerU",
+  "snapshot": "Installed local mineru 3.4.5 Python package",
+  "packaging": "Project metadata reconstructed from installed distribution; only base and pipeline dependencies and CLI/API/model-download entrypoints retained; mineru-vl-utils pinned to local 1.2.1",
+  "omitted": [
+    "Gradio application and resources",
+    "model weights",
+    "virtual environment",
+    "runtime output and credentials"
+  ],
+  "imported_package_files": 230,
+  "package_tree_sha256": "aa466438e93fa57c51323dd11c38a808a455f6f61c88d61ef0a394732764e6a4",
+  "checksum_format": "Sorted package-relative POSIX path + NUL + binary SHA256(file) for each file, excluding Python caches",
+  "normalization": "Trailing whitespace removed from Python source"
+}

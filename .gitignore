@@ -60,3 +60,9 @@ logs
 /ui/vite.harness.config.ts
 
 output/
+**/__pycache__/
+
+# 集成知识服务的模型和本地 Python 环境
+/models/
+**/.venv/
+**/*.egg-info/

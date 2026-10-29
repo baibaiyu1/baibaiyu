@@ -22,4 +22,14 @@ image
 logs
 docker/data
 docker/logs
+docker/.env
+docker/.env.bak
+docker/.env.linux-gpu
+docker/lightrag.env.linux-gpu
+output
+.codex_tmp
+**/__pycache__
+# Python 后端使用各自专用构建上下文，不进入 Java/前端镜像。
+services
+models
 README.md

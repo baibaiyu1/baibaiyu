@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1
+
+# API-only image for the GMD platform. Dockerfile.api.dockerignore keeps both
+# frontend sources and previously built WebUI assets out of the build context.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+
+ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml setup.py uv.lock README.md LICENSE ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --extra api --no-install-project --no-editable
+
+COPY lightrag/ ./lightrag/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --extra api --no-editable \
+    && /app/.venv/bin/python -m ensurepip --upgrade
+
+RUN mkdir -p /app/data/tiktoken \
+    && /app/.venv/bin/lightrag-download-cache --cache-dir /app/data/tiktoken
+
+FROM python:3.12-slim-bookworm
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates gosu libcairo2 libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -g 1000 lightrag \
+    && useradd -u 1000 -g lightrag -m -d /home/lightrag -s /usr/sbin/nologin lightrag
+
+COPY --chown=lightrag:lightrag --from=builder /app/.venv /app/.venv
+COPY --chown=lightrag:lightrag --from=builder /app/lightrag /app/lightrag
+COPY --chown=lightrag:lightrag --from=builder /app/data/tiktoken /app/data/tiktoken
+COPY --chown=lightrag:lightrag LICENSE /app/LICENSE
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && mkdir -p /app/data/rag_storage /app/data/inputs /app/data/prompts /app/data/logs \
+    && chown lightrag:lightrag /app /app/data /app/data/rag_storage \
+        /app/data/inputs /app/data/prompts /app/data/logs
+
+ENV ENABLE_API_DOCS=false \
+    PATH=/app/.venv/bin:$PATH \
+    HOME=/home/lightrag \
+    XDG_CACHE_HOME=/home/lightrag/.cache \
+    PIP_CACHE_DIR=/home/lightrag/.cache/pip \
+    TIKTOKEN_CACHE_DIR=/app/data/tiktoken \
+    WORKING_DIR=/app/data/rag_storage \
+    INPUT_DIR=/app/data/inputs \
+    PROMPT_DIR=/app/data/prompts \
+    LOG_DIR=/app/data/logs
+
+EXPOSE 9621
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["python", "-m", "lightrag.api.lightrag_server"]

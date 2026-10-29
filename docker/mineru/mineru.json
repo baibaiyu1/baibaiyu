@@ -1,0 +1,12 @@
+{
+  "latex-delimiter-config": {
+    "display": { "left": "$$", "right": "$$" },
+    "inline": { "left": "$", "right": "$" }
+  },
+  "models-dir": {
+    "pipeline": "/models",
+    "vlm": ""
+  },
+  "model-source": "modelscope",
+  "config_version": "1.3.2"
+}

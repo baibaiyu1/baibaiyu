@@ -1,0 +1,173 @@
+# 与 docker-compose-simple.yml 合并使用，不能单独启动。
+# !override 需要 Docker Compose >= 2.24.4。
+services:
+  gmd-faq-mysql:
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请先执行 linux-gpu.sh init}
+    ports: !override
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    # TCP stays closed during the image's temporary initialization server.
+    # mysqladmin ping can succeed even when authentication fails.
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql --protocol=TCP -h127.0.0.1 -uroot -N -e "SELECT 1" "$$MYSQL_DATABASE"']
+
+  gmd-faq-redis:
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?请先执行 linux-gpu.sh init}
+    ports: !override
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    command: [sh, -c, 'exec redis-server --requirepass "$$REDIS_PASSWORD"']
+
+  gmd-faq-pgvector:
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?请先执行 linux-gpu.sh init}
+    ports: !override
+      - "127.0.0.1:${PG_PORT:-5432}:5432"
+    healthcheck:
+      test: [CMD-SHELL, 'PGPASSWORD="$$POSTGRES_PASSWORD" psql -h127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -At -c "SELECT 1"']
+
+  gmd-faq-console:
+    environment:
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请先执行 linux-gpu.sh init}
+      JWT_SECRET: ${JWT_SECRET:?请先执行 linux-gpu.sh init}
+    ports: !override
+      - "127.0.0.1:3060:3060"
+    # 等待 Spring 开始接受连接；不调用登录接口，不产生周期性的鉴权错误日志。
+    healthcheck:
+      test: [CMD, bash, -c, "exec 3<>/dev/tcp/127.0.0.1/3060"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
+  gmd-faq-runtime:
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?请先执行 linux-gpu.sh init}
+    ports: !override
+      - "127.0.0.1:3061:3061"
+    depends_on:
+      gmd-faq-console:
+        condition: service_healthy
+
+  gmd-faq-proxy:
+    ports: !override
+      - "127.0.0.1:3062:3062"
+
+  gmd-faq-websocket:
+    ports: !override
+      - "127.0.0.1:${WEBSOCKET_PORT:-3064}:3064"
+
+  gmd-faq-gateway:
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?请先执行 linux-gpu.sh init}
+    # host 网络中的网关通过宿主机回环访问，同一知识库 URL 也适用于网关。
+    extra_hosts:
+      - "lightrag:127.0.0.1"
+    depends_on:
+      gmd-faq-console:
+        condition: service_healthy
+
+  lightrag:
+    image: ${LIGHTRAG_IMAGE:-gmd/lightrag-api:local}
+    build:
+      context: ${LIGHTRAG_SOURCE_DIR:-../services/lightrag}
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    init: true
+    mem_limit: ${LIGHTRAG_MEM_LIMIT:-4g}
+    cpus: ${LIGHTRAG_CPU_LIMIT:-4}
+    env_file:
+      - ./lightrag.env.linux-gpu
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "9621"
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:?请先执行 linux-gpu.sh init}
+      WORKSPACE: ${LIGHTRAG_WORKSPACE:-}
+      WORKERS: "1"
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+      PROMPT_DIR: /app/data/prompts
+      LOG_DIR: /app/data/logs
+      ENABLE_API_DOCS: "false"
+      MINERU_API_MODE: local
+      MINERU_LOCAL_ENDPOINT: http://mineru:8000
+      MINERU_LOCAL_BACKEND: pipeline
+      MINERU_LOCAL_PARSE_METHOD: auto
+      MINERU_LOCAL_IMAGE_ANALYSIS: "false"
+      MINERU_ENABLE_TABLE: "true"
+      MINERU_ENABLE_FORMULA: "true"
+      MINERU_POLL_INTERVAL_SECONDS: "2"
+      MINERU_MAX_POLLS: "600"
+      MAX_PARALLEL_PARSE_MINERU: "1"
+      LIGHTRAG_PARSER: "pdf:mineru-iteP,md:native-iteP,*:legacy-R"
+    volumes:
+      - ${DATA_PATH:-./data/linux-gpu}/lightrag/rag_storage:/app/data/rag_storage
+      - ${DATA_PATH:-./data/linux-gpu}/lightrag/inputs:/app/data/inputs
+      - ${DATA_PATH:-./data/linux-gpu}/lightrag/prompts:/app/data/prompts
+      - ${LOG_PATH:-./logs/linux-gpu}/lightrag:/app/data/logs
+    ports:
+      - "127.0.0.1:9621:9621"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request; r = urllib.request.Request('http://127.0.0.1:9621/health', headers={'X-API-Key': os.environ['LIGHTRAG_API_KEY']}); urllib.request.urlopen(r, timeout=10).close()"
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      mineru:
+        condition: service_healthy
+    networks:
+      - gmd_faq_simple
+
+  mineru:
+    image: ${MINERU_IMAGE:-gmd/mineru-api:3.4.5-cuda12.8}
+    build:
+      context: ..
+      dockerfile: docker/mineru/Dockerfile
+      args:
+        MINERU_BASE_IMAGE: ${MINERU_BASE_IMAGE:-pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime}
+    restart: unless-stopped
+    init: true
+    mem_limit: ${MINERU_MEM_LIMIT:-8g}
+    cpus: ${MINERU_CPU_LIMIT:-4}
+    shm_size: ${MINERU_SHM_SIZE:-2g}
+    environment:
+      MINERU_DEVICE_MODE: cuda
+      MINERU_MODEL_SOURCE: local
+      MINERU_TOOLS_CONFIG_JSON: /app/mineru.json
+      MINERU_API_OUTPUT_ROOT: /app/output
+      MINERU_API_MAX_CONCURRENT_REQUESTS: "1"
+      MINERU_API_ENABLE_FASTAPI_DOCS: "0"
+      MINERU_API_TASK_RETENTION_SECONDS: ${MINERU_API_TASK_RETENTION_SECONDS:-86400}
+      MINERU_API_TASK_CLEANUP_INTERVAL_SECONDS: ${MINERU_API_TASK_CLEANUP_INTERVAL_SECONDS:-300}
+      HF_HOME: /app/cache/huggingface
+      MODELSCOPE_CACHE: /app/cache/modelscope
+      NO_PROXY: "localhost,127.0.0.1,mineru,lightrag"
+    volumes:
+      - type: bind
+        source: ${MINERU_MODELS_DIR:?请配置 MINERU_MODELS_DIR}
+        target: /models
+        read_only: true
+        bind:
+          create_host_path: false
+      - ${DATA_PATH:-./data/linux-gpu}/mineru/output:/app/output
+      - ${DATA_PATH:-./data/linux-gpu}/mineru/cache:/app/cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${MINERU_GPU_ID:-0}"]
+              capabilities: [gpu]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=10).close()"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
+    networks:
+      - gmd_faq_simple

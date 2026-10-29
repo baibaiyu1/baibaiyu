@@ -8,6 +8,9 @@
 - **前端** — Vue 3.5 · Ant Design Vue 4 · Vite 7 · Pinia · Vue Flow · ECharts
 - **存储** — MySQL 8（`gmd_faq_server`）· Redis 7（db 7）· pgvector (PG 16)
 - **部署** — Docker Compose，6 个 Runner 服务 + 前端 Nginx
+- **知识服务** — 仓库内集成 LightRAG 图谱检索与 MinerU 文档解析后端，部署和模型准备见[内置知识服务](services/README.md)
+
+集成组件的来源与许可见[第三方组件说明](THIRD_PARTY_NOTICES.md)。
 
 > 后端模块沿用 `GMD-FAQ-*` 前缀。
 

@@ -1,0 +1,12 @@
+# This image only needs the vendored parser and the service launcher.
+**
+!services/
+!services/mineru/
+!services/mineru/**
+!docker/
+!docker/mineru/
+!docker/mineru/Dockerfile
+!docker/mineru/entrypoint.py
+!docker/mineru/mineru.json
+**/__pycache__/
+**/*.pyc

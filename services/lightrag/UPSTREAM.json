@@ -1,0 +1,18 @@
+{
+  "project": "LightRAG",
+  "version": "1.5.8",
+  "repository": "https://github.com/HKUDS/LightRAG",
+  "base_commit": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+  "snapshot": "Local working tree including platform integration changes",
+  "omitted": [
+    "WebUI source and assets",
+    "Swagger assets",
+    "runtime data and credentials",
+    "examples and upstream test suite",
+    "Evaluation tools and sample documents"
+  ],
+  "imported_package_files": 185,
+  "package_tree_sha256": "24b7f5d7fb4cb064f4afa009ff529068f0761b030e5fbfd9c078627912511e54",
+  "checksum_format": "Sorted package-relative POSIX path + NUL + binary SHA256(file) for each file, excluding Python caches",
+  "normalization": "Trailing whitespace removed from Python source"
+}

@@ -1,0 +1,13 @@
+# Only the Python API package and its build inputs are needed.
+**
+!pyproject.toml
+!setup.py
+!uv.lock
+!README.md
+!LICENSE
+!docker-entrypoint.sh
+!lightrag/
+!lightrag/**
+lightrag/api/webui/
+**/__pycache__/
+**/*.pyc

@@ -2,6 +2,8 @@
 
 本指南维护 Compose 部署、升级顺序和环境变量。源码构建见 [项目 README](../README.md)，多节点文件存储见 [共享存储指南](shared-storage.md)，智能体使用见 [产品手册](../ui/src/doc/content/agent/index.md)。
 
+将本机完整系统迁至 Linux NVIDIA GPU 服务器，可使用[一键离线打包与恢复](deployment-bundle.md)，同时带上镜像、数据库、平台文件、LightRAG 活动卷及 MinerU 模型；源码上传构建方式见 [Linux GPU 部署](linux-gpu.md)。
+
 ## 架构概览
 
 ```
@@ -116,24 +118,26 @@ docker compose -f docker-compose-simple.yml down            # 停止并删除容
 
 **不包含** GMD-FAQ-RUNNER-FILE（单机模式无需文件同步）
 
-### 外挂 LightRAG 知识库
+### 内置 LightRAG 与 MinerU 知识服务
 
-LightRAG 独立部署，平台通过 Runtime 请求其 `/query/data` 检索接口，通过 Console 连接文档管理与图谱读取 API。平台知识库中填写基础服务地址与 `LIGHTRAG_API_KEY`（以 `X-API-Key` 发送）；服务须支持返回实体、关系、片段和引用的 `/query/data` 协议。
+LightRAG 和 MinerU 的 Python 后端已纳入本仓库 `services/`，无需额外上传两个源码项目。源码、模型准备及许可见[内置知识服务说明](../services/README.md)。Linux NVIDIA 单机同时部署平台、LightRAG 和 MinerU 时，使用 [Linux 单机 GPU 部署指南](linux-gpu.md)。配套入口提供 API 专用 LightRAG 镜像、从本仓库源码安装的 MinerU 3.4.5 pipeline GPU 镜像、独立配置初始化、内部服务连接及数据迁移说明。
+
+LightRAG 和 MinerU 作为同仓库的 Python 服务运行。平台通过 Runtime 请求 LightRAG 的 `/query/data` 检索接口，通过 Console 连接文档管理与图谱读取 API，LightRAG 再调用 MinerU 解析 PDF。平台知识库中填写基础服务地址与 `LIGHTRAG_API_KEY`（以 `X-API-Key` 发送）；服务须支持返回实体、关系、片段和引用的 `/query/data` 协议。
 
 原生文档处理和图谱浏览组件的源码保存在平台 `ui/lightrag-management/`，由 `pnpm -C ui build:main` 与主应用一起构建，现有前端 Dockerfile 会将页面发布到 `/web/lightrag-management/index.html`。知识库管理页通过本地 iframe 隔离 React 与 Vue 的样式，HTML、脚本和样式均由平台提供。LightRAG 只需提供后端 API，可关闭其 WebUI，无需构建或部署额外的 `platform.html`。源码来源和更新方式见[管理页集成说明](../ui/lightrag-management/README.md)。
 
-- 同一容器网络内，可使用 `http://lightrag:9621` 等实际服务名。LightRAG 不包含在平台的 Compose 服务列表中，需另行部署并连接网络。
+- Linux GPU 覆盖编排已包含 `lightrag` 和 `mineru`，同一容器网络内使用 `http://lightrag:9621`。单独使用基础 `docker-compose-simple.yml` 时只启动平台原有服务，需要同时使用覆盖文件才能启动内置知识服务。
 - Console 与 Runtime 都必须能够访问该基础地址。管理页通过 `/api/knowledge/config/{id}/lightrag/` 访问 Console，沿用平台登录 Cookie，每次请求重新校验知识库管理权限；无需为浏览器暴露 LightRAG 端口或设置 CORS。Console 仅连接 API，不代理远端页面和静态资源；只使用已保存的远端密钥，不转发平台登录令牌、Cookie 或工作区切换头。进入管理页先检查 `/auth/verify` 和 `/health`，配套 LightRAG 后端需支持这两个接口。
 - Runtime 容器访问 Windows/macOS 宿主机服务，可使用 `http://host.docker.internal:9621`；LightRAG 的监听地址、端口发布和防火墙必须允许 Runtime 访问。仅发布到宿主机 `127.0.0.1` 的端口通常无法由其他容器访问。Linux 需按部署环境配置可达地址或 host-gateway 映射。
 - 一个平台配置对应一个 LightRAG 实例启动时的工作区；多个隔离知识库使用不同实例地址。平台不会通过请求头切换工作区，同一工作区内的文档不能再用平台配置权限拆分。
 - 配置单次请求超时时间和重试次数时，同时检查反向代理超时；默认单次 180 秒、不重试。文本抽取、关键词、图片理解、向量及重排模型可从平台模型管理中选择，未选角色继续使用 LightRAG 环境配置。
 - 平台模型同步需要配套 LightRAG 支持 `PUT /models/config`，且必须设置 `LIGHTRAG_API_KEY`。平台后端发送该服务密钥和从模型管理解析的模型配置，不转发用户登录令牌。同步配置保存在 LightRAG `working_dir` 下的 `platform_models_<workspace>.json`，须持久化该目录并限制访问；文件包含运行所需模型凭证，不对外提供读取接口。
-- 同步模型后重启 LightRAG 的全部 worker/容器；该配置不做进程内热替换。已有向量数据切换模型时停止服务，使用同一工作目录及工作区运行 `lightrag-rebuild-vdb`，再启动服务；重建工具也读取已同步的模型配置。模型身份与维度检查继续生效，不自动清除或覆盖原索引。具体命令以配套 LightRAG 的 `docs/PlatformModels.md` 为准。
+- 同步模型后重启 LightRAG 的全部 worker/容器；该配置不做进程内热替换。已有向量数据切换模型时停止服务，使用同一工作目录及工作区运行 `lightrag-rebuild-vdb`，再启动服务；重建工具也读取已同步的模型配置。模型身份与维度检查继续生效，不自动清除或覆盖原索引。具体命令见[平台模型同步说明](../services/lightrag/docs/PlatformModels.md)。
 - 同一 LightRAG 工作区只接受一个平台知识库的模型绑定，标识为租户 ID 与知识库 ID。更换绑定时须停止服务，由运维核对工作目录与数据归属后处理同步文件，再重新同步、重启。运行配置及密钥更新后重复同步和重启；清空选择后同步、重启恢复环境配置。
 - 文档管理代理不自动重试写请求。上传沿用 Console 的 multipart 限制（默认单文件 30 MB、单请求 100 MB）及前端 Nginx 的 `client_max_body_size`；需要更大文档时同步调整两者。图谱写入、检索对话、系统设置和其他 LightRAG API 不通过管理代理开放。
 - 知识库图片需要 LightRAG 的 `/query/data` 支持 `include_images=true` 并返回 `data.images`（Base64、MIME、caption 和来源）；平台与 LightRAG 均须升级。图片读取只使用本次命中文档的既有 sidecar，不新增检索或图片分析请求；旧版本仅返回文字和引用。代理响应体限制需容纳图片 Base64，LightRAG 默认图片原始总量上限 8 MiB。
 
-升级先更新 Console，完成 `V35__lightrag_knowledge_type.sql`，再更新 Runtime 和前端；源码更新使用 `docker compose -f docker/docker-compose-simple.yml up -d --build`（仓库根目录执行），重建后重启前端以刷新 upstream。配置与检索行为见[知识库手册](../ui/src/doc/content/knowledge/index.md#lightrag-知识库)。
+升级先更新 Console，完成 `V35__lightrag_knowledge_type.sql`，再更新 Runtime 和前端；平台源码更新使用 `docker compose -f docker/docker-compose-simple.yml up -d --build`（仓库根目录执行），知识服务源码更新使用 `bash docker/linux-gpu.sh up`；重建后重启前端以刷新 upstream。配置与检索行为见[知识库手册](../ui/src/doc/content/knowledge/index.md#知识图谱)。
 
 ### 博查联网搜索
 
@@ -459,6 +463,12 @@ docker/
 ├── maven/                      # Maven 私有仓库配置
 ├── npm/                        # NPM 私有仓库配置
 ├── docker-compose-simple.yml   # 单机体验版
+├── docker-compose-linux-gpu.yml # Linux GPU 覆盖编排（与 simple 合并）
+├── linux-gpu.sh                # 独立配置初始化、检查、构建和启动
+├── linux-gpu.md                # 上传、部署与数据迁移指南
+├── export-bundle.ps1           # Windows 一键构建、备份、导出完整部署包
+├── deployment-bundle.md        # 离线部署包与数据库/活动卷恢复指南
+├── mineru/                     # MinerU 3.4.5 GPU API 镜像与模型路径配置
 ├── docker-compose-console.yml  # 生产-控制台节点
 ├── docker-compose-execute.yml  # 生产-执行节点
 ├── docker-compose-middleware.yml # 生产-中间件
