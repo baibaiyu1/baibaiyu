@@ -48,6 +48,7 @@ public class LightRagManagementService {
     private final ResourceVisibilityService visibility;
     private final ObjectMapper objectMapper;
     private final LightRagModelSyncService modelSync;
+    private final LightRagConnectionResolver connections;
 
     public com.fasterxml.jackson.databind.JsonNode syncModels(Long id) {
         return modelSync.sync(manageable(id));
@@ -70,7 +71,8 @@ public class LightRagManagementService {
                     || Set.of("cross-site", "same-site").contains(String.valueOf(request.getHeader("Sec-Fetch-Site")))) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "请从知识库管理页面操作");
             }
-            if (!"GET".equals(request.getMethod()) && !Set.of("/documents/paginated", "/documents/cancel_pipeline").contains(path))
+            if (LightRagConnectionResolver.isBuiltin(config.getConnectionConfig())
+                    || (!"GET".equals(request.getMethod()) && !Set.of("/documents/paginated", "/documents/cancel_pipeline").contains(path)))
                 modelSync.ensureReady(config);
             RestClient.RequestBodySpec outgoing = client(config).method(HttpMethod.valueOf(request.getMethod()))
                     .uri(target(config, path, query(path, request)));
@@ -129,14 +131,14 @@ public class LightRagManagementService {
         int timeout = config.getHttpConfig() == null ? 180 : config.getHttpConfig().path("timeoutSeconds").asInt(180);
         factory.setReadTimeout(Duration.ofSeconds(Math.clamp(timeout, 1, 600)));
         var builder = RestClient.builder().requestFactory(factory);
-        String key = config.getConnectionConfig() == null ? "" : config.getConnectionConfig().path("apiKey").asText("").trim();
+        String key = connections.resolve(config).apiKey();
         if (!key.isEmpty()) builder.defaultHeader("X-API-Key", key);
         return builder.build();
     }
 
     private URI target(KnowledgeBaseConfig config, String path, String query) {
         try {
-            String base = config.getConnectionConfig().path("baseUrl").asText("").trim().replaceAll("/+$", "");
+            String base = connections.resolve(config).baseUrl();
             URI uri = URI.create(base);
             if (!Set.of("http", "https").contains(String.valueOf(uri.getScheme())) || uri.getHost() == null
                     || uri.getUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null) {

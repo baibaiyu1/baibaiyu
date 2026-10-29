@@ -29,7 +29,7 @@ docker compose -f docker-compose-simple.yml ps
 
 首次启动前，替换 `docker/.env` 中的 `JWT_SECRET` 占位值。可执行 `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"` 生成随机密钥，Console、Runtime、Gateway 和 WebSocket 使用相同的值。
 
-启动后访问 `http://127.0.0.1/web/`（端口以 `.env` 中的 `FRONTEND_PORT` 为准），默认账号 `admin / Admin@123.com`。单机版共 9 个容器：3 个中间件、5 个后端服务和前端 Nginx。
+启动后访问 `http://127.0.0.1/web/`（端口以 `.env` 中的 `FRONTEND_PORT` 为准），默认账号 `admin / Admin@123.com`。单机版共 10 个容器：3 个中间件、5 个后端服务、内置知识图谱和前端 Nginx。图谱连接与模型准备见 [Docker 指南](docker/README.md#内置-lightrag-与-mineru-知识服务)。
 
 管理脚本 `docker/start-simple.sh <build|rebuild|start|stop|restart|down|status>` 是上述命令的封装，但它启动前会用 `.env.simple` **覆盖** `.env`。若你已在 `.env` 中做过端口重映射或内存预算调整，请直接使用上面的 compose 命令，或在 Windows / Docker Desktop 上按 [docker/README.md](docker/README.md#windows--docker-desktop-宿主机) 的说明执行。
 

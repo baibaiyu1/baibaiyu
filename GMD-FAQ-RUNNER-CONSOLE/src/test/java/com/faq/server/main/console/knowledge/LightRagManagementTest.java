@@ -7,6 +7,8 @@ import com.gmd.faq.server.main.common.enums.KbType;
 import com.gmd.faq.server.main.common.util.UserUtils;
 import com.gmd.faq.server.main.knowledge.service.KnowledgeBaseConfigService;
 import com.gmd.faq.server.main.knowledge.service.LightRagManagementService;
+import com.gmd.faq.server.main.knowledge.service.LightRagConnectionResolver;
+import com.gmd.faq.server.main.knowledge.service.LightRagModelSyncService;
 import com.gmd.faq.server.main.resource.visibility.service.ResourceVisibilityService;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -33,6 +35,7 @@ class LightRagManagementTest {
     private static final ObjectMapper JSON = new ObjectMapper();
     private final KnowledgeBaseConfigService configs = mock(KnowledgeBaseConfigService.class);
     private final ResourceVisibilityService visibility = mock(ResourceVisibilityService.class);
+    private final LightRagModelSyncService modelSync = mock(LightRagModelSyncService.class);
     private final List<Received> received = new CopyOnWriteArrayList<>();
     private HttpServer upstream;
     private KnowledgeBaseConfig config;
@@ -72,7 +75,7 @@ class LightRagManagementTest {
         UserUtils.setBackgroundUserDetail(UserDetail.builder().id(7L).tenantId(9L).authType(UserUtils.AUTH_ACCOUNT)
                 .perms(List.of("knowledge:config:edit")).build());
         var service = new LightRagManagementService(configs, visibility, JSON,
-                mock(com.gmd.faq.server.main.knowledge.service.LightRagModelSyncService.class));
+                modelSync, new LightRagConnectionResolver("http://127.0.0.1:" + upstream.getAddress().getPort() + "/prefix", "builtin-key"));
         mvc = MockMvcBuilders.standaloneSetup(new LightRagManagementController(service))
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(JSON)).build();
     }
@@ -88,6 +91,20 @@ class LightRagManagementTest {
         mvc.perform(get(ROOT + "/management")).andExpect(status().isOk()).andExpect(jsonPath("$.data").value(true));
         assertEquals(List.of("/prefix/auth/verify", "/prefix/health"), received.stream().map(Received::path).toList());
         assertTrue(received.stream().allMatch(item -> "remote-secret".equals(item.key()) && item.authorization() == null && item.cookie() == null));
+    }
+
+    @Test
+    void builtinReadsUseServerCredentialsAndVerifyWorkspaceOwnershipOnEveryRequest() throws Exception {
+        config.setConnectionConfig(JSON.createObjectNode().put("mode", "BUILTIN"));
+        mvc.perform(get(ROOT + "/graphs").header("X-GMD-LightRAG", "management"))
+                .andExpect(status().isOk());
+        assertEquals("builtin-key", received.getFirst().key());
+        verify(modelSync).ensureReady(config);
+        received.clear();
+        doThrow(new IllegalArgumentException("工作区绑定冲突")).when(modelSync).ensureReady(config);
+        mvc.perform(get(ROOT + "/graphs").header("X-GMD-LightRAG", "management"))
+                .andExpect(status().isConflict());
+        assertTrue(received.isEmpty(), "不能跳过准备接口读取其他知识库的内置工作区");
     }
 
     @Test

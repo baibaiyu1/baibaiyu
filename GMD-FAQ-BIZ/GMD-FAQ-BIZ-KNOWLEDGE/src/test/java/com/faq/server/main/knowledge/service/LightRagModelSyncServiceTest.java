@@ -17,7 +17,7 @@ import static org.mockito.Mockito.*;
 class LightRagModelSyncServiceTest {
     private final ObjectMapper json = new ObjectMapper();
     private final KnowledgeModelService models = mock(KnowledgeModelService.class);
-    private final LightRagModelSyncService service = new LightRagModelSyncService(models);
+    private LightRagModelSyncService service;
     private final KnowledgeBaseConfig config = new KnowledgeBaseConfig();
     private HttpServer server;
     private volatile int status = 200;
@@ -42,6 +42,8 @@ class LightRagModelSyncServiceTest {
             exchange.close();
         });
         server.start();
+        service = new LightRagModelSyncService(models, new LightRagConnectionResolver(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/rag", "builtin-key"));
         config.setConnectionConfig(json.createObjectNode()
                 .put("baseUrl", "http://127.0.0.1:" + server.getAddress().getPort() + "/rag/").put("apiKey", "server-key"));
         when(models.lightRagPayload(config)).thenReturn(json.createObjectNode().put("owner", "9:42")
@@ -79,5 +81,24 @@ class LightRagModelSyncServiceTest {
         when(models.lightRagPayload(config)).thenReturn(null);
         service.ensureReady(config);
         assertNull(method);
+    }
+
+    @Test
+    void initialBindingNeedsRestartWithoutRequestingVectorRebuild() {
+        response = "{\"status\":\"success\",\"restart_required\":true,\"rebuild_required\":false}";
+        String message = assertThrows(IllegalArgumentException.class, () -> service.ensureReady(config)).getMessage();
+        assertTrue(message.contains("重启"));
+        assertFalse(message.contains("重建"));
+    }
+
+    @Test
+    void builtinUsesDeploymentConnectionWithoutSavingOrForwardingClientCredentials() {
+        config.setConnectionConfig(json.createObjectNode().put("mode", "BUILTIN")
+                .put("baseUrl", "https://untrusted.test").put("apiKey", "client-key"));
+        service.ensureReady(config);
+        assertEquals("builtin-key", key);
+        assertNull(authorization);
+        assertEquals("9:42", body.path("owner").asText());
+        assertFalse(config.getConnectionConfig().toString().contains("builtin-key"));
     }
 }

@@ -54,7 +54,11 @@ public class KnowledgeModelService {
 
     public void validateReferences(KnowledgeBaseConfig config) {
         if (config.getKbType() != KbType.LOCAL && config.getKbType() != KbType.LIGHTRAG) return;
-        JsonNode connection = config.getConnectionConfig();
+        JsonNode connection = config.getKbType() == KbType.LIGHTRAG
+                ? LightRagConnectionResolver.normalize(config.getConnectionConfig()) : config.getConnectionConfig();
+        if (config.getKbType() == KbType.LIGHTRAG) {
+            config.setConnectionConfig(connection);
+        }
         if (connection == null || !connection.isObject()) throw new IllegalArgumentException("知识库连接配置不能为空");
         for (String key : MODEL_KEYS) {
             Long id = reference(connection, key);
@@ -129,7 +133,8 @@ public class KnowledgeModelService {
     public ObjectNode lightRagPayload(KnowledgeBaseConfig config) {
         JsonNode connection = config.getConnectionConfig();
         if (MODEL_KEYS.stream().noneMatch(key -> reference(connection, key) != null)
-                && (connection == null || !connection.path("platformModelsManaged").asBoolean())) return null;
+                && (connection == null || !connection.path("platformModelsManaged").asBoolean())
+                && (config.getKbType() != KbType.LIGHTRAG || !LightRagConnectionResolver.isBuiltin(connection))) return null;
         ObjectNode payload = json.createObjectNode();
         payload.put("owner", TenantUtils.getCurrentTenantId() + ":" + config.getId());
         ObjectNode roles = payload.putObject("roles");

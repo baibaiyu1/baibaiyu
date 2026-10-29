@@ -50,12 +50,15 @@ public final class LightRagKnowledge implements Knowledge {
     }
 
     public LightRagKnowledge(KnowledgeBaseConfig config, ObjectMapper mapper, Runnable ensureModels) {
+        this(config, mapper, ensureModels, config == null ? null : config.getConnectionConfig());
+    }
+
+    public LightRagKnowledge(KnowledgeBaseConfig config, ObjectMapper mapper, Runnable ensureModels, JsonNode connection) {
         this.ensureModels = ensureModels;
-        if (config == null || config.getConnectionConfig() == null || !config.getConnectionConfig().isObject()) {
+        if (config == null || connection == null || !connection.isObject()) {
             throw new IllegalArgumentException("知识图谱连接配置不能为空");
         }
         this.mapper = mapper;
-        JsonNode connection = config.getConnectionConfig();
         String baseUrl = connection.path("baseUrl").asText("").trim().replaceAll("/+$", "");
         URI base;
         try {

@@ -22,7 +22,7 @@ from lightrag.utils import (
 
 from lightrag.base import BaseVectorStorage
 from lightrag.constants import DEFAULT_QUERY_PRIORITY
-from nano_vectordb import NanoVectorDB
+from .nano_vector_client import SnapshotNanoVectorDB as NanoVectorDB
 from . import file_fingerprint
 from .vector_space import (
     assert_vector_space_matches,

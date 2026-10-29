@@ -106,7 +106,7 @@ docker compose -f docker-compose-simple.yml down            # 停止并删除容
 > - **网关（`gmd-faq-gateway`）依赖 `network_mode: host`**，Windows / macOS 的 Docker Desktop 不作为其支持环境，该容器不保证正常启动；验证网关请以 Linux 为准。
 > - 前端出现 **502** 时，先执行上面的 `restart gmd-faq-frontend`：Nginx 只在容器启动时解析一次 upstream 主机名。
 
-**包含的服务**（9 个容器）：
+**包含的服务**（10 个容器）：
 
 - MySQL 8.0 + Redis 7 + pgvector (pg16)
 - GMD-FAQ-RUNNER-CONSOLE（管理控制台）
@@ -115,6 +115,7 @@ docker compose -f docker-compose-simple.yml down            # 停止并删除容
 - GMD-FAQ-RUNNER-GATEWAY（网关数据面，host 网络，动态暴露工作流 API 端口）
 - GMD-FAQ-RUNNER-WEBSOCKET（WebSocket 推送服务）
 - frontend（Nginx 前端）
+- lightrag（内置知识图谱 API）
 
 **不包含** GMD-FAQ-RUNNER-FILE（单机模式无需文件同步）
 
@@ -122,11 +123,14 @@ docker compose -f docker-compose-simple.yml down            # 停止并删除容
 
 LightRAG 和 MinerU 的 Python 后端已纳入本仓库 `services/`，无需额外上传两个源码项目。源码、模型准备及许可见[内置知识服务说明](../services/README.md)。Linux NVIDIA 单机同时部署平台、LightRAG 和 MinerU 时，使用 [Linux 单机 GPU 部署指南](linux-gpu.md)。配套入口提供 API 专用 LightRAG 镜像、从本仓库源码安装的 MinerU 3.4.5 pipeline GPU 镜像、独立配置初始化、内部服务连接及数据迁移说明。
 
-LightRAG 和 MinerU 作为同仓库的 Python 服务运行。平台通过 Runtime 请求 LightRAG 的 `/query/data` 检索接口，通过 Console 连接文档管理与图谱读取 API，LightRAG 再调用 MinerU 解析 PDF。平台知识库中填写基础服务地址与 `LIGHTRAG_API_KEY`（以 `X-API-Key` 发送）；服务须支持返回实体、关系、片段和引用的 `/query/data` 协议。
+LightRAG 和 MinerU 作为同仓库的 Python 服务运行。平台通过 Runtime 请求 LightRAG 的 `/query/data` 检索接口，通过 Console 连接文档管理与图谱读取 API，LightRAG 再调用 MinerU 解析 PDF。知识库默认使用内置服务，不再要求逐个填写地址与密钥；管理员在 `docker/.env` 设置 `LIGHTRAG_API_KEY`，并按需复制 `lightrag.env.example` 为 `lightrag.env`，配置模型与解析参数。Console、Runtime、Gateway 通过 `LIGHTRAG_BASE_URL` 和同一服务密钥连接，密钥以 `X-API-Key` 发送，不写入知识库记录或返回浏览器。第三方连接点击“连接第三方服务”后填写地址和密钥；原有未标明连接方式且带地址的配置继续按第三方处理。服务须支持返回实体、关系、片段和引用的 `/query/data` 协议。
 
 原生文档处理和图谱浏览组件的源码保存在平台 `ui/lightrag-management/`，由 `pnpm -C ui build:main` 与主应用一起构建，现有前端 Dockerfile 会将页面发布到 `/web/lightrag-management/index.html`。知识库管理页通过本地 iframe 隔离 React 与 Vue 的样式，HTML、脚本和样式均由平台提供。LightRAG 只需提供后端 API，可关闭其 WebUI，无需构建或部署额外的 `platform.html`。源码来源和更新方式见[管理页集成说明](../ui/lightrag-management/README.md)。
 
-- Linux GPU 覆盖编排已包含 `lightrag` 和 `mineru`，同一容器网络内使用 `http://lightrag:9621`。单独使用基础 `docker-compose-simple.yml` 时只启动平台原有服务，需要同时使用覆盖文件才能启动内置知识服务。
+- 基础编排默认包含内置 `lightrag`，同一容器网络内使用 `http://lightrag:9621`。Linux GPU 覆盖编排增加 `mineru`，提供 GPU PDF 解析；其他部署可在 `lightrag.env` 中连接已有 MinerU。LightRAG 的宿主机端口默认仅绑定 `127.0.0.1:9621`，浏览器统一通过平台管理接口访问。
+- host 网络的 Gateway 使用 `LIGHTRAG_GATEWAY_BASE_URL`，默认 `http://127.0.0.1:9621`；分布式部署时，分别按 Console/Runtime 容器与 Gateway 宿主机的可达地址配置。
+- 图谱默认保存在命名卷 `gmd-faq-lightrag-data`；输入、提示与日志位于本机数据和日志目录。迁移已有图谱前停止旧服务并备份实际活动卷；设置 `LIGHTRAG_DATA_VOLUME` 为原卷名、`LIGHTRAG_DATA_VOLUME_EXTERNAL=true`，同时迁移 inputs/prompts 并沿用原模型、维度、工作区与存储配置。不要使用已经停用的旧 bind 目录覆盖活动卷，也不要让新旧服务同时写同一卷。接管原有知识库时保留其 ID，仅将连接方式切换为内置。
+- 内置工作区只绑定一个平台知识库；所有管理请求和检索均校验绑定，即使没有选择平台模型也不能通过新建配置读取其他知识库的数据。首次绑定或模型变更提示重启时，执行 `docker compose -f docker/docker-compose-simple.yml restart lightrag`，绑定冲突不自动覆盖。
 - Console 与 Runtime 都必须能够访问该基础地址。管理页通过 `/api/knowledge/config/{id}/lightrag/` 访问 Console，沿用平台登录 Cookie，每次请求重新校验知识库管理权限；无需为浏览器暴露 LightRAG 端口或设置 CORS。Console 仅连接 API，不代理远端页面和静态资源；只使用已保存的远端密钥，不转发平台登录令牌、Cookie 或工作区切换头。进入管理页先检查 `/auth/verify` 和 `/health`，配套 LightRAG 后端需支持这两个接口。
 - Runtime 容器访问 Windows/macOS 宿主机服务，可使用 `http://host.docker.internal:9621`；LightRAG 的监听地址、端口发布和防火墙必须允许 Runtime 访问。仅发布到宿主机 `127.0.0.1` 的端口通常无法由其他容器访问。Linux 需按部署环境配置可达地址或 host-gateway 映射。
 - 一个平台配置对应一个 LightRAG 实例启动时的工作区；多个隔离知识库使用不同实例地址。平台不会通过请求头切换工作区，同一工作区内的文档不能再用平台配置权限拆分。
@@ -335,7 +339,7 @@ http://<执行节点宿主机 IP>:<网关应用端口>/<API 路径>
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
 | `DOCKER_REGISTRY` | Docker 镜像私有仓库前缀 | 空（使用 Docker Hub） |
-| `JWT_SECRET` | JWT 签名密钥 | 模板为占位值，部署前生成至少 32 字节的随机密钥并在各服务保持一致 |
+| `JWT_SECRET` | Console、Runtime、Gateway 和 WebSocket 共用的 JWT 签名密钥 | 模板为占位值，部署前生成至少 32 字节的随机密钥并在各服务保持一致 |
 | `MYSQL_HOST` | MySQL 地址 | `gmd-faq-mysql` |
 | `MYSQL_PORT` | MySQL 端口 | `3306` |
 | `MYSQL_DATABASE` | 数据库名 | `gmd_faq_server` |

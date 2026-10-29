@@ -9,33 +9,29 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
-import java.util.Set;
 
 /** 在文档管理和检索前校验/同步模型，禁止只保存选择却继续调用旧模型。 */
 @Service
 @RequiredArgsConstructor
 public class LightRagModelSyncService {
     private final KnowledgeModelService models;
+    private final LightRagConnectionResolver connections;
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NEVER).build();
 
     public JsonNode sync(KnowledgeBaseConfig config) {
         JsonNode payload = models.lightRagPayload(config);
         if (payload == null) return null;
-        JsonNode connection = config.getConnectionConfig();
-        String base = connection.path("baseUrl").asText("").trim().replaceAll("/+$", "");
-        URI uri = URI.create(base);
-        if (!Set.of("http", "https").contains(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null
-                || uri.getQuery() != null || uri.getFragment() != null) throw new IllegalArgumentException("知识图谱服务地址无效");
+        var connection = connections.resolve(config);
+        String base = connection.baseUrl();
         var factory = new JdkClientHttpRequestFactory(HTTP);
         factory.setReadTimeout(Duration.ofSeconds(30));
         var client = RestClient.builder().requestFactory(factory).build();
         try {
             return client.put().uri(base + "/models/config").contentType(MediaType.APPLICATION_JSON)
-                    .header("X-API-Key", connection.path("apiKey").asText(""))
+                    .header("X-API-Key", connection.apiKey())
                     .body(payload).exchange((request, response) -> {
                         int status = response.getStatusCode().value();
                         if (status == 404) throw new IllegalArgumentException("LightRAG 尚不支持平台模型同步，请更新适配后的 LightRAG 服务");
@@ -53,7 +49,11 @@ public class LightRagModelSyncService {
 
     public void ensureReady(KnowledgeBaseConfig config) {
         JsonNode result = sync(config);
-        if (result != null && result.path("restart_required").asBoolean())
-            throw new IllegalArgumentException("模型配置已同步；向量模型或模型角色变更须重启 LightRAG 后生效，已有向量数据须先使用 lightrag-rebuild-vdb 重建");
+        if (result != null && result.path("restart_required").asBoolean()) {
+            String message = "图谱绑定或模型配置已同步，请重启图谱服务后重试";
+            if (result.path("rebuild_required").asBoolean())
+                message += "；向量模型已变更，已有向量数据须先使用 lightrag-rebuild-vdb 重建";
+            throw new IllegalArgumentException(message);
+        }
     }
 }

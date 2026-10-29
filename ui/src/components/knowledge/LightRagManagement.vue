@@ -32,7 +32,7 @@ async function load() {
     }, 30000)
   } catch (cause) {
     if (current !== generation) return
-    error.value = typeof cause === 'string' ? cause : '无法加载管理页面，请检查知识图谱服务地址、API 密钥和服务状态。'
+    error.value = typeof cause === 'string' ? cause : '无法加载管理页面，请确认内置服务已启动，或检查第三方连接配置。'
     loading.value = false
   }
 }
@@ -43,7 +43,7 @@ function handleFrameMessage(event: MessageEvent) {
   clearTimeout(loadTimer)
   loading.value = false
   if (event.data.type === 'lightrag-management-error') {
-    error.value = '知识图谱连接或登录已失效，请刷新页面；仍无法连接时请检查服务地址和 API 密钥。'
+    error.value = '知识图谱连接或登录已失效，请刷新页面；仍无法连接时请确认服务已启动，或检查第三方连接配置。'
     ready.value = false
   }
 }

@@ -173,4 +173,18 @@ class KnowledgeModelServiceTest {
         ((com.fasterxml.jackson.databind.node.ObjectNode) config.getConnectionConfig()).put("platformModelsManaged", true);
         assertEquals(0, service.lightRagPayload(config).path("roles").size());
     }
+
+    @Test
+    void builtinWithoutSelectedModelsStillClaimsItsKnowledgeBaseIdentity() {
+        var config = knowledge(KbType.LIGHTRAG);
+        config.setConnectionConfig(null);
+        service.validateReferences(config);
+        assertEquals("BUILTIN", config.getConnectionConfig().path("mode").asText());
+        assertFalse(config.getConnectionConfig().has("apiKey"));
+        var payload = service.lightRagPayload(config);
+        assertEquals("9:42", payload.path("owner").asText());
+        assertEquals(0, payload.path("roles").size());
+        config.setConnectionConfig(json.createObjectNode().put("baseUrl", "https://external.test"));
+        assertNull(service.lightRagPayload(config), "已有第三方服务无模型选择时继续兼容旧协议");
+    }
 }

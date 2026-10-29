@@ -102,6 +102,8 @@ services:
       REDIS_DATABASE: ${REDIS_DATABASE}
       JWT_SECRET: ${JWT_SECRET}
       CONSOLE_JAVA_HEAP_PERCENTAGE: ${CONSOLE_JAVA_HEAP_PERCENTAGE:-75.0}
+      LIGHTRAG_BASE_URL: ${LIGHTRAG_BASE_URL:-http://lightrag:9621}
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:-}
       WEBSOCKET_ENABLED: ${WEBSOCKET_ENABLED:-true}
       WEBSOCKET_HOST: ${WEBSOCKET_HOST:-gmd-faq-websocket}
       WEBSOCKET_PORT: ${WEBSOCKET_PORT:-3064}
@@ -153,6 +155,8 @@ services:
       PROXY_PORT: "3062"
       GATEWAY_ENABLED: "true"
       GATEWAY_JAVA_HEAP_PERCENTAGE: ${GATEWAY_JAVA_HEAP_PERCENTAGE:-75.0}
+      LIGHTRAG_BASE_URL: ${LIGHTRAG_GATEWAY_BASE_URL:-http://127.0.0.1:9621}
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:-}
       GMD_FAQ_NODE_ID: ${GMD_FAQ_NODE_ID:-gateway-simple}
       GMD_FAQ_HOST_NAME: ${GMD_FAQ_HOST_NAME}
       GMD_FAQ_HOST_IP: ${GMD_FAQ_HOST_IP}
@@ -206,6 +210,8 @@ services:
       PROXY_PORT: "3062"
       CONSOLE_HOST: gmd-faq-console
       RUNTIME_JAVA_HEAP_PERCENTAGE: ${RUNTIME_JAVA_HEAP_PERCENTAGE:-75.0}
+      LIGHTRAG_BASE_URL: ${LIGHTRAG_BASE_URL:-http://lightrag:9621}
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:-}
       GMD_VOICE_SERVER_URL: ${GMD_VOICE_SERVER_URL:-ws://127.0.0.1:7880}
       GMD_VOICE_API_KEY: ${GMD_VOICE_API_KEY:-}
       GMD_VOICE_API_SECRET: ${GMD_VOICE_API_SECRET:-}
@@ -318,6 +324,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DATABASE: ${REDIS_DATABASE}
       CONSOLE_HOST: ${CONSOLE_HOST:-gmd-faq-console}
+      JWT_SECRET: ${JWT_SECRET}
       WEBSOCKET_JAVA_HEAP_PERCENTAGE: ${WEBSOCKET_JAVA_HEAP_PERCENTAGE:-50.0}
       TZ: Asia/Shanghai
     ports:
@@ -325,6 +332,53 @@ services:
     depends_on:
       gmd-faq-redis:
         condition: service_healthy
+    networks:
+      - gmd_faq_simple
+
+  # ==================== 内置知识图谱 ====================
+  lightrag:
+    image: ${LIGHTRAG_IMAGE:-gmd/lightrag-api:local}
+    build:
+      context: ${LIGHTRAG_SOURCE_DIR:-../services/lightrag}
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    init: true
+    mem_limit: ${LIGHTRAG_MEM_LIMIT:-3g}
+    cpus: ${LIGHTRAG_CPU_LIMIT:-2}
+    env_file:
+      - path: ./lightrag.env
+        required: false
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "9621"
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:-}
+      WORKSPACE: ${LIGHTRAG_WORKSPACE:-}
+      WORKERS: "1"
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+      PROMPT_DIR: /app/data/prompts
+      LOG_DIR: /app/data/logs
+      ENABLE_API_DOCS: "false"
+      WHITELIST_PATHS: /health
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "2"
+    volumes:
+      - lightrag_data:/app/data/rag_storage
+      - ${DATA_PATH:-./data}/lightrag/inputs:/app/data/inputs
+      - ${DATA_PATH:-./data}/lightrag/prompts:/app/data/prompts
+      - ${LOG_PATH:-./logs}/lightrag:/app/data/logs
+    ports:
+      - "127.0.0.1:${LIGHTRAG_PORT:-9621}:9621"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request; r = urllib.request.Request('http://127.0.0.1:9621/health', headers={'X-API-Key': os.environ.get('LIGHTRAG_API_KEY', '')}); urllib.request.urlopen(r, timeout=10).close()"
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
     networks:
       - gmd_faq_simple
 
@@ -366,3 +420,8 @@ networks:
   gmd_faq_simple:
     name: gmd_faq_simple
     driver: bridge
+
+volumes:
+  lightrag_data:
+    name: ${LIGHTRAG_DATA_VOLUME:-gmd-faq-lightrag-data}
+    external: ${LIGHTRAG_DATA_VOLUME_EXTERNAL:-false}

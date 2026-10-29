@@ -101,7 +101,8 @@ class LightRagKnowledgeTest {
         var configs = org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.KnowledgeBaseConfigService.class);
         org.mockito.Mockito.when(configs.getById(config.getId())).thenReturn(config);
         var knowledge = new LightRagIKnowledge(MAPPER,
-                org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.LightRagModelSyncService.class), configs).build(config);
+                org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.LightRagModelSyncService.class), configs,
+                new com.gmd.faq.server.main.knowledge.service.LightRagConnectionResolver(baseUrl(), "builtin-key")).build(config);
         var docs = knowledge.retrieve("  如何使用知识库？  ", RetrieveConfig.builder().limit(1).scoreThreshold(0.99).build()).block(WAIT);
         assertNotNull(docs);
         assertEquals(2, docs.size(), "图谱上下文不能被片段上限截掉");
@@ -335,7 +336,8 @@ class LightRagKnowledgeTest {
         var configs = org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.KnowledgeBaseConfigService.class);
         var sync = org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.LightRagModelSyncService.class);
         org.mockito.Mockito.when(configs.getById(config.getId())).thenReturn(config);
-        var knowledge = new LightRagIKnowledge(MAPPER, sync, configs).build(config);
+        var knowledge = new LightRagIKnowledge(MAPPER, sync, configs,
+                new com.gmd.faq.server.main.knowledge.service.LightRagConnectionResolver(baseUrl(), "builtin-key")).build(config);
         org.mockito.Mockito.doThrow(new IllegalArgumentException("须重启 LightRAG")).when(sync).ensureReady(config);
         assertTrue(assertThrows(IllegalArgumentException.class, () -> knowledge.retrieve("pending", null).block(WAIT))
                 .getMessage().contains("重启"));
@@ -357,6 +359,20 @@ class LightRagKnowledgeTest {
             assertNotNull(knowledge.retrieve("知识库", null).block(WAIT));
             assertEquals(1, requests.size());
         } finally { com.gmd.faq.server.main.common.util.TenantUtils.clear(); }
+    }
+
+    @Test
+    void builtinRetrievalResolvesTheServerEndpointAndCredential() {
+        config.setConnectionConfig(MAPPER.createObjectNode().put("mode", "BUILTIN"));
+        var configs = org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.KnowledgeBaseConfigService.class);
+        var sync = org.mockito.Mockito.mock(com.gmd.faq.server.main.knowledge.service.LightRagModelSyncService.class);
+        org.mockito.Mockito.when(configs.getById(config.getId())).thenReturn(config);
+        var knowledge = new LightRagIKnowledge(MAPPER, sync, configs,
+                new com.gmd.faq.server.main.knowledge.service.LightRagConnectionResolver(baseUrl(), "builtin-key")).build(config);
+        assertNotNull(knowledge.retrieve("知识库", null).block(WAIT));
+        assertEquals("builtin-key", requests.getFirst().apiKey());
+        org.mockito.Mockito.verify(sync).ensureReady(config);
+        assertFalse(config.getConnectionConfig().has("apiKey"));
     }
 
     private record Request(String path, JsonNode body, String apiKey, String authorization, String workspace) {}

@@ -22,11 +22,11 @@ const modelFields = [
   { key: 'embeddingModelId', label: '向量模型', usage: 'EMBEDDING', placeholder: '使用 LightRAG 服务原配置' },
   { key: 'rerankModelId', label: '重排模型', usage: 'RERANK', placeholder: '使用 LightRAG 服务原配置' }
 ] as const
-const activeSection = ref('connection')
+const activeSection = ref('models')
 const isEdit = computed(() => !!props.data?.id)
 const form = reactive({
   name: '', description: '',
-  connection: { baseUrl: '', apiKey: '', llmModelId: undefined as string | undefined,
+  connection: { mode: 'BUILTIN' as 'BUILTIN' | 'EXTERNAL', baseUrl: '', apiKey: '', llmModelId: undefined as string | undefined,
     extractModelId: undefined as string | undefined, keywordModelId: undefined as string | undefined,
     queryModelId: undefined as string | undefined, vlmModelId: undefined as string | undefined,
     embeddingModelId: undefined as string | undefined, rerankModelId: undefined as string | undefined },
@@ -39,6 +39,8 @@ watch(() => props.data, (data) => {
   form.name = data.name
   form.description = data.description || ''
   Object.assign(form.connection, data.connectionConfig)
+  const saved = data.connectionConfig
+  form.connection.mode = saved?.mode === 'EXTERNAL' || (!saved?.mode && !!saved?.baseUrl) ? 'EXTERNAL' : 'BUILTIN'
   Object.assign(form.retrieval, data.retrievalConfig)
   Object.assign(form.http, data.httpConfig)
 }, { immediate: true })
@@ -54,20 +56,27 @@ async function validateUrl(_rule: unknown, value: string) {
   }
 }
 
+function toggleConnection() {
+  form.connection.mode = form.connection.mode === 'BUILTIN' ? 'EXTERNAL' : 'BUILTIN'
+  formRef.value?.clearValidate()
+}
+
 async function save() {
   try {
     await formRef.value?.validate()
   } catch {
-    message.warning('请检查名称、服务地址和检索参数')
+    message.warning('请检查名称和配置参数')
     return
   }
   saving.value = true
   try {
+    const { baseUrl, apiKey, ...connection } = form.connection
     const data: KnowledgeBaseConfig = {
       ...(isEdit.value ? { id: String(props.data!.id) } : {}),
       name: form.name.trim(), description: form.description.trim(), kbType: KbType.LIGHTRAG,
       ragMode: props.data?.ragMode || RAGMode.AGENTIC,
-      connectionConfig: { ...form.connection, baseUrl: form.connection.baseUrl.trim().replace(/\/+$/, ''), apiKey: form.connection.apiKey.trim() },
+      connectionConfig: form.connection.mode === 'BUILTIN' ? { ...connection }
+        : { ...connection, baseUrl: baseUrl.trim().replace(/\/+$/, ''), apiKey: apiKey.trim() },
       retrievalConfig: { ...form.retrieval }, httpConfig: { ...form.http },
       endpointConfig: null, rerankingConfig: null, queryRewriteConfig: null, metadataFilters: null,
       healthStatus: props.data?.healthStatus || HealthStatus.UNKNOWN,
@@ -110,8 +119,16 @@ async function syncModels() {
       <AFormItem label="描述" name="description" :rules="[{ max: 200, message: '描述最多200个字符' }]">
         <ATextarea v-model:value="form.description" :rows="3" placeholder="说明知识库内容与适用范围" />
       </AFormItem>
-      <ASegmented v-model:value="activeSection" :options="[{ label: '连接配置', value: 'connection' }, { label: '模型配置', value: 'models' }, { label: '检索配置', value: 'retrieval' }, { label: 'HTTP 配置', value: 'http' }]" block />
-      <div v-show="activeSection === 'connection'" class="config-content">
+      <div class="connection-choice">
+        <div>
+          <strong>{{ form.connection.mode === 'BUILTIN' ? '内置知识图谱' : '第三方知识图谱' }}</strong>
+          <p>{{ form.connection.mode === 'BUILTIN' ? '直接使用平台内置服务，无需填写连接配置。' : '连接已有的第三方知识图谱服务。' }}</p>
+        </div>
+        <AButton @click="toggleConnection">
+          {{ form.connection.mode === 'BUILTIN' ? '连接第三方服务' : '使用内置服务' }}
+        </AButton>
+      </div>
+      <div v-if="form.connection.mode === 'EXTERNAL'" class="external-connection">
         <AFormItem label="服务地址（Base URL）" :name="['connection', 'baseUrl']" :rules="[{ required: true, message: '请输入服务地址' }, { validator: validateUrl, trigger: 'blur' }]" extra="填写对应知识库的服务地址；不同工作区应连接各自的服务实例。">
           <AInput v-model:value="form.connection.baseUrl" placeholder="例如：http://knowledge-service:9621" />
         </AFormItem>
@@ -119,8 +136,9 @@ async function syncModels() {
           <AInputPassword v-model:value="form.connection.apiKey" placeholder="请输入 API Key" autocomplete="new-password" />
         </AFormItem>
       </div>
+      <ASegmented v-model:value="activeSection" :options="[{ label: '模型配置', value: 'models' }, { label: '检索配置', value: 'retrieval' }, { label: 'HTTP 配置', value: 'http' }]" block />
       <div v-show="activeSection === 'models'" class="config-content">
-        <AAlert type="info" show-icon message="选择平台已启用的模型，统一使用模型管理中的地址与认证。" description="保存后同步配置，重启 LightRAG 生效。向量模型必须与已有索引一致；更换时先停止服务并重建索引。LightRAG 需配置 API 密钥；一个服务工作区绑定一个知识库。" />
+        <AAlert type="info" show-icon message="选择平台已启用的模型，统一使用模型管理中的地址与认证。" description="保存后同步配置，重启图谱服务生效。向量模型必须与已有索引一致；更换时先停止服务并重建索引。第三方服务同步模型时需提供 API 密钥；一份图谱数据绑定一个知识库。" />
         <AFormItem v-for="field in modelFields" :key="field.key" :label="field.label">
           <KnowledgeModelSelect v-model:value="form.connection[field.key]" :models="models" :loading="modelsLoading"
             :usage="field.usage" :placeholder="field.placeholder" />
@@ -166,6 +184,10 @@ async function syncModels() {
 .knowledge-form { max-height: calc(100vh - 180px); overflow: auto; }
 .ant-alert { margin-bottom: 16px; }
 .config-content { padding: 16px 0 4px; }
+.connection-choice { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.connection-choice p { margin: 4px 0 0; color: var(--color-text-secondary); }
+.external-connection { padding: 16px; margin-bottom: 16px; border: 1px solid var(--color-border-light); border-radius: 8px; }
+@media (max-width: 640px) { .connection-choice { align-items: flex-start; flex-direction: column; } }
 .ant-input-number { width: 100%; }
 .form-footer { display: flex; justify-content: center; gap: var(--spacing-sm); margin-top: var(--spacing-base); }
 </style>

@@ -12,3 +12,4 @@
 # Linux GPU 部署的本机凭据与模型服务配置
 .env.linux-gpu
 lightrag.env.linux-gpu
+lightrag.env

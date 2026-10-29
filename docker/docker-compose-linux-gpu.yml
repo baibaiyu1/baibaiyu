@@ -76,7 +76,7 @@ services:
     init: true
     mem_limit: ${LIGHTRAG_MEM_LIMIT:-4g}
     cpus: ${LIGHTRAG_CPU_LIMIT:-4}
-    env_file:
+    env_file: !override
       - ./lightrag.env.linux-gpu
     environment:
       HOST: "0.0.0.0"
@@ -105,7 +105,7 @@ services:
       - ${DATA_PATH:-./data/linux-gpu}/lightrag/inputs:/app/data/inputs
       - ${DATA_PATH:-./data/linux-gpu}/lightrag/prompts:/app/data/prompts
       - ${LOG_PATH:-./logs/linux-gpu}/lightrag:/app/data/logs
-    ports:
+    ports: !override
       - "127.0.0.1:9621:9621"
     healthcheck:
       test:
